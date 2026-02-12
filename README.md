@@ -25,7 +25,7 @@ Create and review flashcards directly in Obsidian using the Free Spaced Repetiti
 
 ### Manual Installation
 
-1. Download from [GitHub](https://github.com/sapienskid)
+1. Download from [GitHub](https://github.com/sapienskid/neuralcard)
 2. Extract to `.obsidian/plugins/lemma-flashcards/`
 3. Reload Obsidian and enable the plugin
 
@@ -34,10 +34,10 @@ Create and review flashcards directly in Obsidian using the Free Spaced Repetiti
 To develop the plugin:
 
 1. Clone the repository
-2. Run `npm install`
-3. Run `npm run dev` for development build
+2. Run `pnpm install`
+3. Run `pnpm run dev` for development build
 4. Set `OBSIDIAN_VAULT_PATH` environment variable to your vault path
-5. Run `npm run build-deploy` to build and copy to vault
+5. Run `pnpm run deploy` to build and copy to vault
 6. Reload Obsidian to test changes
 
 ### Requirements
@@ -93,7 +93,7 @@ This is a ==c1::cloze== deletion card.
 
 ## Contributing
 
-Contributions welcome at [GitHub](https://github.com/sapienskid).
+Contributions welcome at [GitHub](https://github.com/sapienskid/neuralcard).
 
 ## License
 

@@ -1,12 +1,12 @@
 {
   "name": "lemma-flashcards",
   "version": "1.0.0",
-  "description": "Create and review flashcards in Obsidian using the FSRS algorithm.",
+  "description": "Create and review flashcards in your vault using the FSRS algorithm for spaced repetition.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "deploy": "npm run build && node deploy.mjs"
+    "deploy": "pnpm run build && node deploy.mjs"
   },
   "keywords": [
     "obsidian-md",
@@ -14,8 +14,16 @@
     "spaced-repetition",
     "fsrs"
   ],
-  "author": "Alexandru-Sava",
-  "license": "MIT",
+  "author": "Sapienskid",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sapienskid/neuralcard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sapienskid/neuralcard/issues"
+  },
+  "homepage": "https://github.com/sapienskid/neuralcard#readme",
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
     "@types/node": "^16.11.6",
