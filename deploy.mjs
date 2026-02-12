@@ -1,11 +1,16 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 // Define the vault path - change this to your vault's path
 const VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '/home/sapiens/Second Brain/';
+const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
+if (!manifest.id) {
+    console.error('Missing "id" in manifest.json');
+    process.exit(1);
+}
 
-const PLUGIN_DIR = join(VAULT_PATH, '.obsidian', 'plugins', 'neuralcard');
+const PLUGIN_DIR = join(VAULT_PATH, '.obsidian', 'plugins', manifest.id);
 
 // Check if vault exists
 if (!existsSync(VAULT_PATH)) {

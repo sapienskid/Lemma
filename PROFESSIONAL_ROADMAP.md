@@ -1,4 +1,4 @@
-# NeuralCard Roadmap
+# Lemma Roadmap
 
 ## Completed
 
@@ -71,4 +71,3 @@
 - Local-first with optional sync
 - Self-hostable (PouchDB/CouchDB)
 - Open source
-

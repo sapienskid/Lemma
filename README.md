@@ -1,4 +1,4 @@
-# NeuralCard - FSRS Flashcards for Obsidian
+# Lemma - FSRS Flashcards for Obsidian
 
 Create and review flashcards directly in Obsidian using the Free Spaced Repetition Scheduler (FSRS) algorithm for optimal learning.
 
@@ -20,13 +20,13 @@ Create and review flashcards directly in Obsidian using the Free Spaced Repetiti
 ### Via Community Plugins (Recommended)
 
 1. Open Obsidian Settings → Community Plugins → Disable Safe Mode
-2. Search for "NeuralCard" and install
+2. Search for "Lemma" and install
 3. Enable the plugin
 
 ### Manual Installation
 
-1. Download from [GitHub](https://github.com/sapienskid/neuralcard)
-2. Extract to `.obsidian/plugins/neuralcard-flashcards/`
+1. Download from [GitHub](https://github.com/sapienskid)
+2. Extract to `.obsidian/plugins/lemma-flashcards/`
 3. Reload Obsidian and enable the plugin
 
 ### Development
@@ -48,7 +48,7 @@ To develop the plugin:
 
 1. Create a note and add the deck tag (default: `#flashcards`) to the frontmatter or as a tag.
 2. Add flashcards using the syntax below.
-3. Open the FSRS Decks dashboard from the ribbon icon or command palette.
+3. Open the Lemma dashboard from the ribbon icon or command palette.
 4. Study your decks!
 
 ## Card Syntax
@@ -81,8 +81,8 @@ This is a ==c1::cloze== deletion card.
 
 ## Commands
 
-- `FSRS: Add a new flashcard`: Insert basic card template
-- `Open Decks Dashboard`: Open the dashboard view
+- `Add a new flashcard`: Insert basic card template
+- `Open dashboard`: Open the dashboard view
 
 ## Technical Details
 
@@ -93,7 +93,7 @@ This is a ==c1::cloze== deletion card.
 
 ## Contributing
 
-Contributions welcome at [GitHub](https://github.com/sapienskid/neuralcard).
+Contributions welcome at [GitHub](https://github.com/sapienskid).
 
 ## License
 

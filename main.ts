@@ -59,7 +59,7 @@ const DEFAULT_SETTINGS: FSRSSettings = {
     fsrsParams: generatorParameters(),
     syncEnabled: false,
     syncUrl: '',
-    syncDbName: 'neuralcard',
+    syncDbName: 'lemma',
     syncUsername: '',
     syncPassword: '',
     usePouchDB: true
@@ -90,7 +90,7 @@ class DataManager {
         this.plugin = plugin; 
         this.fsrs = new FSRS(plugin.settings.fsrsParams);
         if (plugin.settings.usePouchDB) {
-            this.pouchDB = new PouchDBManager('neuralcard_local');
+            this.pouchDB = new PouchDBManager('lemma_local');
         }
     }
 
@@ -449,7 +449,7 @@ class DataManager {
             await this.pouchDB.destroy();
             // Recreate the database
             const { PouchDBManager } = await import('./src/database/PouchDBManager');
-            this.pouchDB = new PouchDBManager('neuralcard_local');
+            this.pouchDB = new PouchDBManager('lemma_local');
             // Re-initialize sync if it was enabled
             if (this.plugin.settings.syncEnabled) {
                 await this.initializeSync();
@@ -469,7 +469,7 @@ class DataManager {
 // --- UI: DASHBOARD VIEW ---
 class DashboardView extends ItemView {
     private plugin: FSRSFlashcardsPlugin; constructor(leaf: WorkspaceLeaf, plugin: FSRSFlashcardsPlugin) { super(leaf); this.plugin = plugin; }
-    getViewType(): string { return VIEW_TYPE_DASHBOARD; } getDisplayText(): string { return 'FSRS Decks'; } getIcon(): string { return ICON_NAME; }
+    getViewType(): string { return VIEW_TYPE_DASHBOARD; } getDisplayText(): string { return 'Lemma decks'; } getIcon(): string { return ICON_NAME; }
     async onOpen() { this.render(); }
     render() { 
         this.contentEl.empty(); 
@@ -505,7 +505,7 @@ class DashboardView extends ItemView {
         const titleSection = headerTop.createDiv({ cls: 'fsrs-title-section' });
         const logoIcon = titleSection.createDiv({ cls: 'fsrs-logo-icon' });
         setIcon(logoIcon, 'brain-circuit');
-        titleSection.createEl('h2', { text: 'NeuralCard', cls: 'fsrs-title' });
+        titleSection.createEl('h2', { text: 'Lemma', cls: 'fsrs-title' });
         
         // Quick actions row - full width buttons
         const actionsRow = headerEl.createDiv({ cls: 'fsrs-quick-actions' });
@@ -1380,7 +1380,7 @@ class FSRSSettingsTab extends PluginSettingTab {
     display(): void { 
         const { containerEl } = this; 
         containerEl.empty(); 
-        containerEl.createEl('h1', { text: 'FSRS Flashcards Settings' }); 
+        containerEl.createEl('h1', { text: 'Lemma settings' }); 
         
         // Database Settings
         containerEl.createEl('h2', { text: 'Database Settings' });
@@ -1429,9 +1429,9 @@ class FSRSSettingsTab extends PluginSettingTab {
         
         new Setting(containerEl)
             .setName('CouchDB Server URL')
-            .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/neuralcard)')
+            .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/lemma)')
             .addText(text => text
-                .setPlaceholder('https://your-server.com:5984/neuralcard')
+                .setPlaceholder('https://your-server.com:5984/lemma')
                 .setValue(this.plugin.settings.syncUrl)
                 .onChange(async (value) => {
                     this.plugin.settings.syncUrl = value.trim();
@@ -1442,10 +1442,10 @@ class FSRSSettingsTab extends PluginSettingTab {
             .setName('Database Name')
             .setDesc('The name of the database on your CouchDB server')
             .addText(text => text
-                .setPlaceholder('neuralcard')
+                .setPlaceholder('lemma')
                 .setValue(this.plugin.settings.syncDbName)
                 .onChange(async (value) => {
-                    this.plugin.settings.syncDbName = value.trim() || 'neuralcard';
+                    this.plugin.settings.syncDbName = value.trim() || 'lemma';
                     await this.plugin.saveSettings();
                 }));
         
@@ -1618,7 +1618,7 @@ class FSRSSettingsTab extends PluginSettingTab {
 export default class FSRSFlashcardsPlugin extends Plugin {
     settings: FSRSSettings; dataManager: DataManager;
     async onload() {
-        console.log('Loading FSRS Flashcards plugin');
+        console.log('Loading Lemma plugin');
         this.addStyle();
         await this.loadSettings();
         this.dataManager = new DataManager(this);
@@ -1634,8 +1634,8 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         
         this.addSettingTab(new FSRSSettingsTab(this.app, this));
         this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
-        this.addCommand({ id: 'add-fsrs-flashcard', name: 'FSRS: Add a new flashcard', editorCallback: (editor: Editor) => { const blockId = generateBlockId(); const template = `\n\n---card--- ^${blockId}\n\n---\n\n`; const cursor = editor.getCursor(); editor.replaceRange(template, cursor); editor.setCursor({ line: cursor.line + 3, ch: 0 }); } });
-        this.addCommand({ id: 'open-fsrs-dashboard', name: 'Open Decks Dashboard', callback: () => this.activateView() });
+        this.addCommand({ id: 'add-fsrs-flashcard', name: 'Add a new flashcard', editorCallback: (editor: Editor) => { const blockId = generateBlockId(); const template = `\n\n---card--- ^${blockId}\n\n---\n\n`; const cursor = editor.getCursor(); editor.replaceRange(template, cursor); editor.setCursor({ line: cursor.line + 3, ch: 0 }); } });
+        this.addCommand({ id: 'open-fsrs-dashboard', name: 'Open dashboard', callback: () => this.activateView() });
         
         // Add sync commands
         if (this.settings.usePouchDB) {

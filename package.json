@@ -1,5 +1,5 @@
 {
-  "name": "neuralcard-flashcards",
+  "name": "lemma-flashcards",
   "version": "1.0.0",
   "description": "Create and review flashcards in Obsidian using the FSRS algorithm.",
   "main": "main.js",

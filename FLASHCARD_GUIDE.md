@@ -1,6 +1,6 @@
-# NeuralCard - Flashcard Creation Guide
+# Lemma - Flashcard Creation Guide
 
-A complete guide to creating flashcards in Obsidian using the NeuralCard plugin.
+A complete guide to creating flashcards in Obsidian using the Lemma plugin.
 
 ---
 
@@ -40,9 +40,9 @@ Add cards to your deck using the syntax described below. The plugin will automat
 
 ### 3. Study
 
-Open the **FSRS Decks Dashboard** via:
+Open the **Lemma dashboard** via:
 - Ribbon icon (📚)
-- Command palette: `Open Decks Dashboard`
+- Command palette: `Open dashboard`
 
 ---
 
@@ -184,7 +184,7 @@ Block IDs (`^unique-id`) ensure your cards maintain their review history even wh
 
 ### Generating Block IDs
 
-Use the command palette: **`FSRS: Add a new flashcard`**
+Use the command palette: **`Add a new flashcard`**
 
 This inserts a template with a pre-generated ID:
 ```markdown
@@ -246,8 +246,8 @@ See also: [[Geometry Basics]]
 
 | Command | Action | Hotkey |
 |---------|--------|--------|
-| `FSRS: Add a new flashcard` | Insert basic card template | - |
-| `Open Decks Dashboard` | Open study dashboard | - |
+| `Add a new flashcard` | Insert basic card template | - |
+| `Open dashboard` | Open study dashboard | - |
 | `Sync Now` | Manual sync (if enabled) | - |
 | `Check Sync Status` | View sync status | - |
 

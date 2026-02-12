@@ -81,7 +81,7 @@ export class PouchDBManager {
         onComplete?: (info: any) => void;
     } = {};
 
-    constructor(dbName: string = 'neuralcard_local') {
+    constructor(dbName: string = 'lemma_local') {
         this.db = new PouchDB(dbName);
         console.log('PouchDB initialized:', dbName);
     }

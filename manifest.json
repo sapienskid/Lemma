@@ -1,11 +1,10 @@
 {
-  "id": "neuralcard-flashcards",
-  "name": "NeuralCard",
+  "id": "lemma-flashcards",
+  "name": "Lemma",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "Create and review flashcards in Obsidian using the FSRS algorithm for spaced repetition.",
+  "description": "Create and review flashcards in your vault using the FSRS algorithm for spaced repetition.",
   "author": "Sapienskid",
   "authorUrl": "https://github.com/sapienskid",
-  "fundingUrl": "",
   "isDesktopOnly": false
 }
