@@ -39,7 +39,7 @@ Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS 
 
 1. Add your deck tag (default `#flashcards`) to notes you want indexed.
 2. Add cards using one of the formats below.
-3. Run **Lemma: Open dashboard** from the command palette.
+3. Open the dashboard from the right-side status bar icon or run **Lemma: Open dashboard** from the command palette.
 4. Start reviewing due cards.
 
 ## Card formats
@@ -67,6 +67,26 @@ This is a ==c1::cloze== deletion card.
 - `Check sync status` (when sync is enabled)
 - `Reset all card progress (nuclear option)`
 
+## Sync setup (CouchDB)
+
+1. Open **Settings -> Lemma -> Database** and keep **Use PouchDB (IndexedDB)** enabled.
+2. In **Settings -> Lemma -> Sync**, fill:
+   - `CouchDB server URL` (server root, for example `https://your-server.com:5984`)
+   - `Database name` (for example `lemma`)
+   - `Username`
+   - `Password`
+3. Click **Run test** in `Test sync`:
+   - verifies local + remote DB connectivity
+   - if sync is enabled, also runs a one-time manual sync check
+4. Enable **Enable sync** to start continuous sync.
+5. Use:
+   - `Sync now` command for manual sync
+   - `Check sync status` command for current status/details
+
+Notes:
+- The plugin appends the database name to the server URL automatically.
+- If sync is disabled, `Run test` still validates connection without starting continuous sync.
+
 ## Settings
 
 - Deck tag
@@ -75,6 +95,7 @@ This is a ==c1::cloze== deletion card.
 - FSRS parameters (advanced)
 - Storage mode (JSON or PouchDB)
 - Sync server and credentials
+- Sync test button (connection + manual sync check)
 
 ## Development
 
