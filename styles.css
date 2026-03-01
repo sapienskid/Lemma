@@ -447,6 +447,17 @@
             .fsrs-deck-btn-study:hover {
                 background-color: var(--interactive-accent-hover);
             }
+
+            .fsrs-deck-btn-study.no-due {
+                background-color: var(--background-modifier-form-field);
+                color: var(--text-muted);
+                border: 1px solid var(--background-modifier-border);
+            }
+
+            .fsrs-deck-btn-study.no-due:hover {
+                background-color: var(--background-modifier-hover);
+                border-color: var(--background-modifier-border-hover);
+            }
             
             /* Rating buttons - clean design without shortcuts */
             .fsrs-rating-btn {
@@ -468,6 +479,15 @@
                 font-size: var(--font-ui-medium);
                 font-weight: 600;
                 min-height: 50px;
+            }
+
+            .fsrs-card-answer {
+                margin-top: var(--size-4-4);
+            }
+
+            .fsrs-card-answer hr {
+                margin: var(--size-4-4) 0;
+                border-color: var(--background-modifier-border);
             }
             
             .fsrs-deck-secondary-actions {
@@ -502,6 +522,16 @@
             
             /* Loading spinner */
             .is-spinning svg {
+                animation: fsrs-spin 1s linear infinite;
+            }
+
+            .is-loading {
+                opacity: 0.7;
+                pointer-events: none;
+            }
+
+            .is-loading svg,
+            .loading-spinner svg {
                 animation: fsrs-spin 1s linear infinite;
             }
             
@@ -930,105 +960,6 @@
                     height: 40px;
                 }
             }
-            .fsrs-folder-header {
-                display: flex;
-                align-items: center;
-                padding: var(--size-4-2) var(--size-4-3);
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-s);
-                cursor: pointer;
-                margin-bottom: var(--size-4-2);
-                transition: background-color 0.2s ease;
-            }
-            .fsrs-folder-header:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            .fsrs-folder-header svg {
-                width: 16px;
-                height: 16px;
-                margin-right: var(--size-4-2);
-                color: var(--text-accent);
-            }
-            .fsrs-folder-name {
-                font-weight: 600;
-                flex: 1;
-                color: var(--text-normal);
-            }
-            .fsrs-folder-count {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                margin-left: var(--size-4-2);
-                background-color: var(--background-primary);
-                padding: 2px 8px;
-                border-radius: var(--radius-s);
-            }
-            .fsrs-folder-decks {
-                padding-left: var(--size-4-3);
-            }
-            .fsrs-folder-decks .setting-item {
-                margin-left: var(--size-4-2);
-                border-left: 2px solid var(--background-modifier-border);
-                padding-left: var(--size-4-3);
-            }
-            .fsrs-folder-decks .setting-item:last-child {
-                margin-bottom: 0;
-            }
-            /* Native Obsidian-style deck items */
-            .fsrs-deck-item {
-                display: flex;
-                align-items: flex-start;
-                padding: var(--size-4-2) var(--size-4-3);
-                border-radius: var(--radius-s);
-                cursor: pointer;
-                margin-bottom: var(--size-4-1);
-                transition: background-color 0.15s ease;
-            }
-            .fsrs-deck-item:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            .fsrs-deck-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-right: var(--size-4-2);
-                margin-top: 2px;
-                color: var(--text-muted);
-            }
-            .fsrs-deck-icon svg {
-                width: 16px;
-                height: 16px;
-                color: var(--text-accent);
-            }
-            .fsrs-deck-content {
-                flex: 1;
-                min-width: 0;
-            }
-            .fsrs-deck-title {
-                font-weight: 500;
-                color: var(--text-normal);
-                margin-bottom: var(--size-4-1);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            .fsrs-deck-stats {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                display: flex;
-                gap: var(--size-4-2);
-            }
-            .fsrs-deck-actions {
-                display: flex;
-                flex-direction: column;
-                gap: var(--size-4-1);
-                margin-left: var(--size-4-2);
-            }
-            .fsrs-deck-actions button {
-                font-size: var(--font-smaller);
-                padding: var(--size-4-1) var(--size-4-2);
-                height: auto;
-                line-height: 1.2;
-            }
 
             /* Image support in review cards */
             .fsrs-review-card img {
@@ -1112,5 +1043,16 @@
             .fsrs-completion-screen p {
                 color: var(--text-muted);
                 margin-bottom: var(--size-4-6);
+            }
+
+            .fsrs-reset-warning ul,
+            .fsrs-reset-stats ul {
+                margin-top: var(--size-4-2);
+                padding-left: var(--size-4-5);
+            }
+
+            .fsrs-reset-warning li,
+            .fsrs-reset-stats li {
+                margin-bottom: var(--size-4-1);
             }
         

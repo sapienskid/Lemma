@@ -940,7 +940,6 @@ class BrowseModal extends Modal {
         this.plugin = plugin;
         this.cards = cards;
         this.deckName = deckName || 'Unknown Deck';
-        this.modalEl.addClass('fsrs-review-modal');
     }
 
     onOpen() {
