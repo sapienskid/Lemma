@@ -23,7 +23,7 @@ import { DataMigration, type LegacyPluginData } from './src/database/DataMigrati
 
 // --- CONSTANTS ---
 const VIEW_TYPE_DASHBOARD = 'fsrs-dashboard-view';
-const ICON_NAME = 'book-heart';
+const ICON_NAME = 'book-open';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -108,10 +108,24 @@ const DEFAULT_SETTINGS: FSRSSettings = {
 };
 
 type CardType = 'basic' | 'cloze';
-interface CardData { id: string; deckId: string; filePath: string; type: CardType; originalText: string; front: string; back: string; }
+interface CardData {
+    id: string;
+    deckId: string;
+    filePath: string;
+    type: CardType;
+    originalText: string;
+    front: string;
+    back: string;
+}
 type FSRSData = FSRSCard;
 interface Card extends CardData { fsrsData?: FSRSData; }
-interface Deck { id: string; title: string; filePath: string; cardIds: Set<string>; stats: { new: number; due: number; learning: number; }; }
+interface Deck {
+    id: string;
+    title: string;
+    filePath: string;
+    cardIds: Set<string>;
+    stats: { new: number; due: number; learning: number; };
+}
 interface ReviewLog { cardId: string; timestamp: number; rating: Rating; }
 interface PluginData { settings: FSRSSettings; cardData: Record<string, FSRSData>; reviewHistory: ReviewLog[]; }
 
@@ -1541,11 +1555,12 @@ class FSRSSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.syncEnabled = value;
                     await this.plugin.saveSettings();
-                    
-                    if (value && this.plugin.dataManager['pouchDB']) {
+
+                    const pouchDB = this.plugin.dataManager.getPouchDB();
+                    if (value && pouchDB) {
                         await this.setupSync();
-                    } else if (!value && this.plugin.dataManager['pouchDB']) {
-                        await this.plugin.dataManager['pouchDB'].stopSync();
+                    } else if (!value && pouchDB) {
+                        await pouchDB.stopSync();
                         new Notice('Sync disabled');
                     }
                 }));
@@ -1596,15 +1611,25 @@ class FSRSSettingsTab extends PluginSettingTab {
                 text.inputEl.type = 'password';
                 return text;
             });
+
+        new Setting(containerEl)
+            .setName('Test sync')
+            .setDesc('Validate connection and run a one-time sync check from settings')
+            .setDisabled(!this.plugin.settings.usePouchDB)
+            .addButton((btn) => btn
+                .setButtonText('Run test')
+                .onClick(async () => {
+                    await this.testSyncConnection();
+                }));
         
-        if (this.plugin.settings.syncEnabled && this.plugin.dataManager['pouchDB']) {
+        if (this.plugin.settings.syncEnabled && this.plugin.dataManager.getPouchDB()) {
             new Setting(containerEl)
                 .setName('Sync status')
                 .setDesc('Check your current sync status')
                 .addButton(btn => btn
                     .setButtonText('Check status')
                     .onClick(async () => {
-                        const pouchDB = this.plugin.dataManager['pouchDB'];
+                        const pouchDB = this.plugin.dataManager.getPouchDB();
                         if (pouchDB) {
                             const status = await pouchDB.getSyncStatus();
                             const info = await pouchDB.getDatabaseInfo();
@@ -1738,7 +1763,7 @@ class FSRSSettingsTab extends PluginSettingTab {
     }
     
     async migrateData() {
-        const pouchDB = this.plugin.dataManager['pouchDB'];
+        const pouchDB = this.plugin.dataManager.getPouchDB();
         if (!pouchDB) {
             new Notice('PouchDB is not enabled');
             return;
@@ -1786,7 +1811,7 @@ class FSRSSettingsTab extends PluginSettingTab {
     }
     
     async setupSync() {
-        const pouchDB = this.plugin.dataManager['pouchDB'];
+        const pouchDB = this.plugin.dataManager.getPouchDB();
         if (!pouchDB) {
             new Notice('PouchDB is not enabled');
             return;
@@ -1817,6 +1842,48 @@ class FSRSSettingsTab extends PluginSettingTab {
             new Notice(`Sync setup failed: ${getErrorMessage(error)}`);
             this.plugin.settings.syncEnabled = false;
             await this.plugin.saveSettings();
+        }
+    }
+
+    async testSyncConnection() {
+        const pouchDB = this.plugin.dataManager.getPouchDB();
+        if (!pouchDB) {
+            new Notice('PouchDB is not enabled');
+            return;
+        }
+
+        if (!this.plugin.settings.syncUrl) {
+            new Notice('Please enter a CouchDB server URL first');
+            return;
+        }
+
+        try {
+            new Notice('Testing sync connection...');
+            const syncUrl = this.buildAuthenticatedUrl(
+                this.plugin.settings.syncUrl,
+                this.plugin.settings.syncDbName,
+                this.plugin.settings.syncUsername,
+                this.plugin.settings.syncPassword
+            );
+
+            const { remoteInfo, localInfo } = await pouchDB.testConnection(syncUrl);
+            const localDocCount = getDocCount(localInfo);
+            const remoteDocCount = getDocCount(remoteInfo);
+
+            let syncMessage = 'Connection check only (sync is disabled).';
+            if (this.plugin.settings.syncEnabled) {
+                await pouchDB.setupSync(syncUrl);
+                await pouchDB.manualSync();
+                syncMessage = 'Manual sync check passed.';
+            }
+
+            new Notice(
+                `Sync test passed.\nLocal docs: ${localDocCount}\nRemote docs: ${remoteDocCount}\n${syncMessage}`,
+                10000
+            );
+        } catch (error) {
+            console.error('Sync test failed:', error);
+            new Notice(`Sync test failed: ${getErrorMessage(error)}`, 8000);
         }
     }
     
@@ -1878,6 +1945,14 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         
         this.addSettingTab(new FSRSSettingsTab(this.app, this));
         this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
+        const statusButton = this.addStatusBarItem();
+        statusButton.addClass('lemma-status-button');
+        statusButton.setAttribute('aria-label', 'Open Lemma dashboard');
+        statusButton.setAttribute('title', 'Open Lemma dashboard');
+        setIcon(statusButton, ICON_NAME);
+        statusButton.addEventListener('click', () => {
+            void this.activateView();
+        });
         this.addCommand({ id: 'add-fsrs-flashcard', name: 'Add a new flashcard', editorCallback: (editor: Editor) => { const blockId = generateBlockId(); const template = `\n\n---card--- ^${blockId}\n\n---\n\n`; const cursor = editor.getCursor(); editor.replaceRange(template, cursor); editor.setCursor({ line: cursor.line + 3, ch: 0 }); } });
         this.addCommand({
             id: 'open-fsrs-dashboard',

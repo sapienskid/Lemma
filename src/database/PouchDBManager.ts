@@ -507,6 +507,24 @@ export class PouchDBManager {
             throw error;
         }
     }
+
+    async testConnection(remoteUrl: string): Promise<{ remoteInfo: unknown; localInfo: unknown }> {
+        const remoteDb = new PouchDB(remoteUrl);
+
+        try {
+            const [remoteInfo, localInfo] = await Promise.all([
+                remoteDb.info(),
+                this.db.info()
+            ]);
+
+            return { remoteInfo, localInfo };
+        } finally {
+            const closableDb = remoteDb as PouchDB.Database & { close?: () => Promise<void> | void };
+            if (typeof closableDb.close === 'function') {
+                await closableDb.close();
+            }
+        }
+    }
     
     async manualSync(): Promise<void> {
         if (!this.remoteUrl) {
