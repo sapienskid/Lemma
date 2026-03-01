@@ -3,12 +3,26 @@
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                gap: 6px;
+                padding: 0 6px;
                 cursor: pointer;
             }
 
-            .lemma-status-button svg {
+            .lemma-status-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .lemma-status-icon svg {
                 width: 14px;
                 height: 14px;
+            }
+
+            .lemma-status-label {
+                font-size: var(--font-smaller);
+                font-weight: 600;
+                line-height: 1;
             }
 
             .lemma-status-button:hover {
@@ -541,12 +555,11 @@
                 animation: fsrs-spin 1s linear infinite;
             }
 
-            .is-loading {
+            .is-busy {
                 opacity: 0.7;
                 pointer-events: none;
             }
 
-            .is-loading svg,
             .loading-spinner svg {
                 animation: fsrs-spin 1s linear infinite;
             }

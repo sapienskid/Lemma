@@ -424,6 +424,8 @@ export class PouchDBManager {
             }
 
             const remoteDb = new PouchDB(remoteUrl);
+            // Validate remote DB before starting live sync to avoid noisy retry loops.
+            await remoteDb.info();
             this.syncHandler = this.db.sync(remoteDb, {
                 live: true,
                 retry: true

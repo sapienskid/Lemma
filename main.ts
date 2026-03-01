@@ -23,7 +23,8 @@ import { DataMigration, type LegacyPluginData } from './src/database/DataMigrati
 
 // --- CONSTANTS ---
 const VIEW_TYPE_DASHBOARD = 'fsrs-dashboard-view';
-const ICON_NAME = 'book-open';
+const VIEW_ICON_NAME = 'book-open';
+const STATUS_ICON_NAME = 'brain-circuit';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -64,6 +65,18 @@ function getDocCount(info: unknown): number {
         return 0;
     }
     return info.doc_count;
+}
+
+function isLikelyCorsOrNetworkErrorMessage(message: string): boolean {
+    const normalized = message.toLowerCase();
+    return normalized.includes('failed to fetch')
+        || normalized.includes('cors')
+        || normalized.includes('network');
+}
+
+function sanitizeCredentialForUrl(value: string): string {
+    // Preserve already-valid percent escapes and encode stray '%' to prevent URIError in PouchDB parsing.
+    return value.replace(/%(?![0-9a-fA-F]{2})/g, '%25');
 }
 
 
@@ -178,8 +191,16 @@ class DataManager {
                 });
                 
                 this.pouchDB.onSyncError((err) => {
+                    const message = getErrorMessage(err);
                     console.error('Sync error:', err);
-                    new Notice(`Sync error: ${getErrorMessage(err)}`, 5000);
+                    new Notice(`Sync error: ${message}`, 5000);
+
+                    if (isLikelyCorsOrNetworkErrorMessage(message)) {
+                        new Notice('Sync stopped. Check cors settings and sync URL.', 7000);
+                        void this.pouchDB?.stopSync().catch((stopError: unknown) => {
+                            console.error('Failed to stop sync after network/CORS error:', stopError);
+                        });
+                    }
                 });
                 
                 this.pouchDB.onSyncActive(() => {
@@ -203,34 +224,26 @@ class DataManager {
     
     private buildAuthenticatedUrl(url: string, dbName: string, username: string, password: string): string {
         try {
-            // Ensure URL ends with /
-            if (!url.endsWith('/')) {
-                url += '/';
+            const urlObj = new URL(url.trim());
+            const cleanDbName = dbName.trim().replace(/^\/+|\/+$/g, '');
+            const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+
+            if (cleanDbName) {
+                const lastSegment = pathSegments[pathSegments.length - 1];
+                if (lastSegment !== cleanDbName) {
+                    pathSegments.push(cleanDbName);
+                }
             }
-            
-            const urlObj = new URL(url);
-            
-            // Append database name
-            // Remove leading slash from dbName if present to avoid double slashes
-            const cleanDbName = dbName.startsWith('/') ? dbName.substring(1) : dbName;
-            
-            // If pathname is just /, replace it. If it has a path, append to it.
-            if (urlObj.pathname === '/' || urlObj.pathname === '') {
-                 urlObj.pathname = '/' + cleanDbName;
-            } else if (!urlObj.pathname.endsWith('/' + cleanDbName)) {
-                 // Avoid appending if already present
-                 if (urlObj.pathname.endsWith('/')) {
-                     urlObj.pathname += cleanDbName;
-                 } else {
-                     urlObj.pathname += '/' + cleanDbName;
-                 }
+
+            urlObj.pathname = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
+
+            if (username) {
+                urlObj.username = sanitizeCredentialForUrl(username);
             }
-            
-            if (username && password) {
-                urlObj.username = encodeURIComponent(username);
-                urlObj.password = encodeURIComponent(password);
+            if (password) {
+                urlObj.password = sanitizeCredentialForUrl(password);
             }
-            
+
             return urlObj.toString();
         } catch (error) {
             console.error('Failed to build authenticated URL:', error);
@@ -581,7 +594,7 @@ class DataManager {
 // --- UI: DASHBOARD VIEW ---
 class DashboardView extends ItemView {
     private plugin: FSRSFlashcardsPlugin; constructor(leaf: WorkspaceLeaf, plugin: FSRSFlashcardsPlugin) { super(leaf); this.plugin = plugin; }
-    getViewType(): string { return VIEW_TYPE_DASHBOARD; } getDisplayText(): string { return 'Lemma decks'; } getIcon(): string { return ICON_NAME; }
+    getViewType(): string { return VIEW_TYPE_DASHBOARD; } getDisplayText(): string { return 'Lemma decks'; } getIcon(): string { return VIEW_ICON_NAME; }
     async onOpen() { this.render(); }
     render() { 
         this.contentEl.empty(); 
@@ -683,14 +696,19 @@ class DashboardView extends ItemView {
                         new Notice('Sync in progress...');
                         return;
                     }
-                    syncBtn.addClass('is-loading');
+                    syncBtn.addClass('is-busy');
+                    syncBtn.disabled = true;
                     try {
-                        await pouchDB.manualSync();
+                        const syncTimeout = new Promise<never>((_, reject) => {
+                            window.setTimeout(() => reject(new Error('Sync request timed out')), 15000);
+                        });
+                        await Promise.race([pouchDB.manualSync(), syncTimeout]);
                         new Notice('Sync completed!', 3000);
                     } catch (error: unknown) {
                         new Notice(`Sync failed: ${getErrorMessage(error)}`, 5000);
                     } finally {
-                        syncBtn.removeClass('is-loading');
+                        syncBtn.removeClass('is-busy');
+                        syncBtn.disabled = false;
                     }
                 })();
             });
@@ -1889,34 +1907,26 @@ class FSRSSettingsTab extends PluginSettingTab {
     
     private buildAuthenticatedUrl(url: string, dbName: string, username: string, password: string): string {
         try {
-            // Ensure URL ends with /
-            if (!url.endsWith('/')) {
-                url += '/';
+            const urlObj = new URL(url.trim());
+            const cleanDbName = dbName.trim().replace(/^\/+|\/+$/g, '');
+            const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+
+            if (cleanDbName) {
+                const lastSegment = pathSegments[pathSegments.length - 1];
+                if (lastSegment !== cleanDbName) {
+                    pathSegments.push(cleanDbName);
+                }
             }
-            
-            const urlObj = new URL(url);
-            
-            // Append database name
-            // Remove leading slash from dbName if present to avoid double slashes
-            const cleanDbName = dbName.startsWith('/') ? dbName.substring(1) : dbName;
-            
-            // If pathname is just /, replace it. If it has a path, append to it.
-            if (urlObj.pathname === '/' || urlObj.pathname === '') {
-                 urlObj.pathname = '/' + cleanDbName;
-            } else if (!urlObj.pathname.endsWith('/' + cleanDbName)) {
-                 // Avoid appending if already present
-                 if (urlObj.pathname.endsWith('/')) {
-                     urlObj.pathname += cleanDbName;
-                 } else {
-                     urlObj.pathname += '/' + cleanDbName;
-                 }
+
+            urlObj.pathname = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
+
+            if (username) {
+                urlObj.username = sanitizeCredentialForUrl(username);
             }
-            
-            if (username && password) {
-                urlObj.username = encodeURIComponent(username);
-                urlObj.password = encodeURIComponent(password);
+            if (password) {
+                urlObj.password = sanitizeCredentialForUrl(password);
             }
-            
+
             return urlObj.toString();
         } catch (error) {
             console.error('Failed to build authenticated URL:', error);
@@ -1949,7 +1959,9 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         statusButton.addClass('lemma-status-button');
         statusButton.setAttribute('aria-label', 'Open Lemma dashboard');
         statusButton.setAttribute('title', 'Open Lemma dashboard');
-        setIcon(statusButton, ICON_NAME);
+        const statusIcon = statusButton.createSpan({ cls: 'lemma-status-icon' });
+        setIcon(statusIcon, STATUS_ICON_NAME);
+        statusButton.createSpan({ text: 'Lemma', cls: 'lemma-status-label' });
         statusButton.addEventListener('click', () => {
             void this.activateView();
         });
