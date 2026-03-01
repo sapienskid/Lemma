@@ -41,7 +41,7 @@ Add cards to your deck using the syntax described below. The plugin will automat
 ### 3. Study
 
 Open the **Lemma dashboard** via:
-- Right-side status bar icon
+- Right-side status bar **Lemma** button
 - Command palette: `Open dashboard`
 
 ---

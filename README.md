@@ -39,7 +39,7 @@ Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS 
 
 1. Add your deck tag (default `#flashcards`) to notes you want indexed.
 2. Add cards using one of the formats below.
-3. Open the dashboard from the right-side status bar icon or run **Lemma: Open dashboard** from the command palette.
+3. Open the dashboard from the right-side status bar **Lemma** button or run **Lemma: Open dashboard** from the command palette.
 4. Start reviewing due cards.
 
 ## Card formats
