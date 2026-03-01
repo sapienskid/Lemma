@@ -43,5 +43,12 @@ main.js
 *.map
 .hotreload
 
+# Local publishing references (do not commit)
+RELEASE_NOTES.md
+RELEASE_NOTES_*.md
+SUBMISSION_NOTES.md
+COMMUNITY_PR_TEMPLATE.md
+PUBLISHING_CHECKLIST.md
+
 # Obsidian
 .obsidian/

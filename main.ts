@@ -1,6 +1,7 @@
 import {
     App,
     ButtonComponent,
+    Component,
     Editor,
     ItemView,
     MarkdownRenderer,
@@ -18,11 +19,52 @@ import { FSRS, generatorParameters, Rating, State, Card as FSRSCard } from 'ts-f
 import * as CryptoJS from 'crypto-js';
 import { Chart, registerables } from 'chart.js';
 import { PouchDBManager } from './src/database/PouchDBManager';
-import { DataMigration } from './src/database/DataMigration';
+import { DataMigration, type LegacyPluginData } from './src/database/DataMigration';
 
 // --- CONSTANTS ---
 const VIEW_TYPE_DASHBOARD = 'fsrs-dashboard-view';
 const ICON_NAME = 'book-heart';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    if (isRecord(error) && typeof error.message === 'string') {
+        return error.message;
+    }
+
+    return String(error);
+}
+
+function getDocsWritten(info: unknown): number {
+    if (!isRecord(info)) {
+        return 0;
+    }
+    const change = info.change;
+    if (!isRecord(change) || typeof change.docs_written !== 'number') {
+        return 0;
+    }
+    return change.docs_written;
+}
+
+function toStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+    return value.filter((item): item is string => typeof item === 'string');
+}
+
+function getDocCount(info: unknown): number {
+    if (!isRecord(info) || typeof info.doc_count !== 'number') {
+        return 0;
+    }
+    return info.doc_count;
+}
 
 
 function generateBlockId(length: number = 6): string {
@@ -110,23 +152,24 @@ class DataManager {
                     this.plugin.settings.syncUsername,
                     this.plugin.settings.syncPassword
                 );
-                console.log('Initializing sync with:', this.sanitizeUrl(syncUrl));
+                console.debug('Initializing sync with:', this.sanitizeUrl(syncUrl));
                 
                 // Setup sync event handlers
                 this.pouchDB.onSyncChange((info) => {
-                    console.log('Synced changes:', info);
-                    if (info.change.docs_written > 0) {
-                        new Notice(`Synced ${info.change.docs_written} changes`, 2000);
+                    const docsWritten = getDocsWritten(info);
+                    console.debug('Synced changes:', info);
+                    if (docsWritten > 0) {
+                        new Notice(`Synced ${docsWritten} changes`, 2000);
                     }
                 });
                 
                 this.pouchDB.onSyncError((err) => {
                     console.error('Sync error:', err);
-                    new Notice(`Sync error: ${err.message}`, 5000);
+                    new Notice(`Sync error: ${getErrorMessage(err)}`, 5000);
                 });
                 
                 this.pouchDB.onSyncActive(() => {
-                    console.log('Sync active');
+                    console.debug('Sync active');
                 });
                 
                 this.pouchDB.onSyncPaused((err) => {
@@ -139,7 +182,7 @@ class DataManager {
                 new Notice('Sync initialized successfully');
             } catch (error) {
                 console.error('Failed to initialize sync:', error);
-                new Notice(`Sync initialization failed: ${error.message}`);
+                new Notice(`Sync initialization failed: ${getErrorMessage(error)}`);
             }
         }
     }
@@ -188,7 +231,7 @@ class DataManager {
                 urlObj.password = '***';
             }
             return urlObj.toString();
-        } catch (error) {
+        } catch {
             return url;
         }
     }
@@ -215,7 +258,7 @@ class DataManager {
     private async loadFromPouchDB() {
         if (!this.pouchDB) return;
         
-        console.log('Loading data from PouchDB...');
+        console.debug('Loading data from PouchDB...');
         
         // Load card states
         this.fsrsDataStore = await this.pouchDB.getAllCardStates();
@@ -223,12 +266,12 @@ class DataManager {
         // Load review history
         this.reviewHistory = await this.pouchDB.getReviewHistory();
         
-        console.log(`Loaded ${Object.keys(this.fsrsDataStore).length} cards and ${this.reviewHistory.length} reviews from PouchDB`);
+        console.debug(`Loaded ${Object.keys(this.fsrsDataStore).length} cards and ${this.reviewHistory.length} reviews from PouchDB`);
     }
 
     private async loadFromLegacyJSON() {
-        console.log('Loading data from legacy JSON...');
-        const data: PluginData | null = await this.plugin.loadData();
+        console.debug('Loading data from legacy JSON...');
+        const data = (await this.plugin.loadData()) as PluginData | null;
         const cardData = data?.cardData || {};
         for (const cardId in cardData) { 
             const card = cardData[cardId]; 
@@ -248,25 +291,27 @@ class DataManager {
     }
     updateFsrsParameters(params: FSRSParameters) { this.fsrs = new FSRS(params); }
     async buildIndex() {
-        console.log("FSRS: Building index...");
+        console.debug("FSRS: Building index...");
         this.decks.clear(); 
         this.cards.clear();
         // Note: We preserve fsrsDataStore to retain review history
         // Stale entries will be cleaned up naturally since their cards no longer exist
         for (const file of this.plugin.app.vault.getMarkdownFiles()) { await this.updateFile(file); }
         this.recalculateAllDeckStats();
-        console.log(`FSRS: Index complete. Found ${this.decks.size} decks and ${this.cards.size} cards.`);
+        console.debug(`FSRS: Index complete. Found ${this.decks.size} decks and ${this.cards.size} cards.`);
     }
     private getDeckId(path: string): string { return CryptoJS.SHA256(path).toString(); }
     async updateFile(file: TFile) {
         const deckId = this.getDeckId(file.path);
         const cache = this.plugin.app.metadataCache.getFileCache(file);
         const deckTag = `#${this.plugin.settings.deckTag}`;
-        const isDeck = cache?.tags?.some(t => t.tag === deckTag) || cache?.frontmatter?.tags?.includes(this.plugin.settings.deckTag);
+        const frontmatter = isRecord(cache?.frontmatter) ? cache.frontmatter : null;
+        const frontmatterTags = frontmatter ? toStringArray(frontmatter.tags) : [];
+        const isDeck = (cache?.tags?.some((tag) => tag.tag === deckTag) ?? false) || frontmatterTags.includes(this.plugin.settings.deckTag);
         this.removeDeck(deckId, false);
         if (!isDeck) return;
 
-        const title = cache?.frontmatter?.title || file.basename;
+        const title = frontmatter && typeof frontmatter.title === 'string' ? frontmatter.title : file.basename;
         const newDeck: Deck = { id: deckId, title, filePath: file.path, cardIds: new Set(), stats: { new: 0, due: 0, learning: 0 } };
         const content = await this.plugin.app.vault.read(file);
 
@@ -311,7 +356,6 @@ class DataManager {
 
             clozes.forEach(cloze => {
                 const clozeNum = cloze[1];
-                const clozeText = cloze[2];
                 const originalCloze = cloze[0];
 
                 let cardId: string;
@@ -342,7 +386,7 @@ class DataManager {
                 delete this.fsrsDataStore[cardId]; 
             }); 
             this.decks.delete(deckId); 
-            if (fullDelete) this.save(); 
+            if (fullDelete) void this.save(); 
         } 
     }
     async renameDeck(file: TFile, oldPath: string) {
@@ -425,14 +469,68 @@ class DataManager {
                 console.error('Failed to save review log:', err)
             );
         } else {
-            this.save();
+            void this.save();
         }
     }
     getNextReviewIntervals(card: Card): Record<Exclude<Rating, Rating.Manual>, string> { const now = new Date(); const fsrsCard = card.fsrsData || { due: now, stability: 0, difficulty: 0, elapsed_days: 0, scheduled_days: 0, reps: 0, lapses: 0, state: State.New, learning_steps: 0 }; const scheduling_cards = this.fsrs.repeat(fsrsCard, now); const formatInterval = (days: number): string => { if (days < 1) return "<1d"; if (days < 30) return `${Math.round(days)}d`; if (days < 365) return `${(days / 30).toFixed(1)}m`; return `${(days / 365).toFixed(1)}y`; }; return { [Rating.Again]: formatInterval(scheduling_cards[Rating.Again].card.scheduled_days), [Rating.Hard]: formatInterval(scheduling_cards[Rating.Hard].card.scheduled_days), [Rating.Good]: formatInterval(scheduling_cards[Rating.Good].card.scheduled_days), [Rating.Easy]: formatInterval(scheduling_cards[Rating.Easy].card.scheduled_days), }; }
-    getStats() { const now = new Date(); const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime(); const reviewsToday = this.reviewHistory.filter(log => log.timestamp >= todayStart); const activity = new Array(30).fill(0); this.reviewHistory.forEach(log => { const daysAgo = Math.floor((now.getTime() - log.timestamp) / (1000 * 60 * 60 * 24)); if (daysAgo < 30) activity[29 - daysAgo]++; }); const forecast = new Array(7).fill(0); let mature = 0, learning = 0, young = 0, total = 0; for (const card of this.cards.values()) { const data = this.fsrsDataStore[card.id]; if (data) { total++; if (data.due <= now) { const daysForward = Math.floor((data.due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)); if (daysForward < 7 && daysForward >= 0) forecast[daysForward]++; } if (data.stability >= 21) mature++; else if (data.state === State.Review) young++; else learning++; } } return { reviewsToday: reviewsToday.length, activity, forecast, maturity: { mature, young, learning, new: this.cards.size - total } }; }
+    getStats() {
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const reviewsToday = this.reviewHistory.filter((log) => log.timestamp >= todayStart);
+        const activity: number[] = Array.from({ length: 30 }, () => 0);
+
+        this.reviewHistory.forEach((log) => {
+            const daysAgo = Math.floor((now.getTime() - log.timestamp) / (1000 * 60 * 60 * 24));
+            if (daysAgo < 30) {
+                activity[29 - daysAgo]++;
+            }
+        });
+
+        const forecast: number[] = Array.from({ length: 7 }, () => 0);
+        let mature = 0;
+        let learning = 0;
+        let young = 0;
+        let total = 0;
+
+        for (const card of this.cards.values()) {
+            const data = this.fsrsDataStore[card.id];
+            if (!data) {
+                continue;
+            }
+
+            total++;
+
+            if (data.due <= now) {
+                const daysForward = Math.floor((data.due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                if (daysForward < 7 && daysForward >= 0) {
+                    forecast[daysForward]++;
+                }
+            }
+
+            if (data.stability >= 21) {
+                mature++;
+            } else if (data.state === State.Review) {
+                young++;
+            } else {
+                learning++;
+            }
+        }
+
+        return {
+            reviewsToday: reviewsToday.length,
+            activity,
+            forecast,
+            maturity: {
+                mature,
+                young,
+                learning,
+                new: this.cards.size - total
+            }
+        };
+    }
     
     async resetAllProgress(): Promise<void> {
-        console.log('Nuclear option: Resetting all card progress...');
+        console.debug('Nuclear option: Resetting all card progress...');
         
         // Clear from memory
         this.fsrsDataStore = {};
@@ -445,7 +543,7 @@ class DataManager {
         
         // Clear from PouchDB if enabled
         if (this.plugin.settings.usePouchDB && this.pouchDB) {
-            console.log('Clearing PouchDB card states and review logs...');
+            console.debug('Clearing PouchDB card states and review logs...');
             await this.pouchDB.destroy();
             // Recreate the database
             const { PouchDBManager } = await import('./src/database/PouchDBManager');
@@ -462,7 +560,7 @@ class DataManager {
         // Recalculate stats to show all cards as "New"
         this.recalculateAllDeckStats();
         
-        console.log('All progress has been reset');
+        console.debug('All progress has been reset');
     }
 }
 
@@ -473,7 +571,7 @@ class DashboardView extends ItemView {
     async onOpen() { this.render(); }
     render() { 
         this.contentEl.empty(); 
-        this.contentEl.style.padding = "var(--size-4-4)"; 
+        this.contentEl.setCssProps({ 'padding': "var(--size-4-4)" }); 
         
         if (!this.plugin.dataManager.isDataLoaded()) {
             this.renderLoading();
@@ -486,7 +584,7 @@ class DashboardView extends ItemView {
     
     private renderLoading() {
         const container = this.contentEl.createDiv({ cls: 'fsrs-empty-state' });
-        container.createEl('h2', { text: 'Loading Decks...' });
+        container.createEl('h2', { text: 'Loading decks...' });
         container.createEl('p', { text: 'Please wait while we scan your vault.' });
         new ButtonComponent(container)
             .setIcon('loader')
@@ -514,7 +612,7 @@ class DashboardView extends ItemView {
         const studyAllBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-primary' });
         const studyAllIcon = studyAllBtn.createDiv({ cls: 'fsrs-action-icon' });
         setIcon(studyAllIcon, 'play');
-        studyAllBtn.createSpan({ text: 'Study All Due', cls: 'fsrs-action-text' });
+        studyAllBtn.createSpan({ text: 'Study all due', cls: 'fsrs-action-text' });
         const dueCount = this.plugin.dataManager.getDecks().reduce((acc, d) => acc + d.stats.due, 0);
         if (dueCount > 0) {
             studyAllBtn.createEl('span', { text: dueCount.toString(), cls: 'fsrs-action-badge' });
@@ -549,11 +647,13 @@ class DashboardView extends ItemView {
         const refreshIcon = refreshBtn.createDiv({ cls: 'fsrs-action-icon' });
         setIcon(refreshIcon, 'refresh-cw');
         refreshBtn.setAttribute('aria-label', 'Refresh');
-        refreshBtn.addEventListener('click', async () => {
-            refreshBtn.addClass('is-spinning');
-            await this.plugin.dataManager.buildIndex();
-            this.render();
-            refreshBtn.removeClass('is-spinning');
+        refreshBtn.addEventListener('click', () => {
+            void (async () => {
+                refreshBtn.addClass('is-spinning');
+                await this.plugin.dataManager.buildIndex();
+                this.render();
+                refreshBtn.removeClass('is-spinning');
+            })();
         });
         
         // Sync button if enabled
@@ -563,20 +663,22 @@ class DashboardView extends ItemView {
             const syncIcon = syncBtn.createDiv({ cls: 'fsrs-action-icon' });
             setIcon(syncIcon, 'cloud');
             syncBtn.setAttribute('aria-label', 'Sync');
-            syncBtn.addEventListener('click', async () => {
-                if (pouchDB.isSyncing()) {
-                    new Notice('Sync in progress...');
-                    return;
-                }
-                syncBtn.addClass('is-loading');
-                try {
-                    await pouchDB.manualSync();
-                    new Notice('Sync completed!', 3000);
-                } catch (error: any) {
-                    new Notice(`Sync failed: ${error.message}`, 5000);
-                } finally {
-                    syncBtn.removeClass('is-loading');
-                }
+            syncBtn.addEventListener('click', () => {
+                void (async () => {
+                    if (pouchDB.isSyncing()) {
+                        new Notice('Sync in progress...');
+                        return;
+                    }
+                    syncBtn.addClass('is-loading');
+                    try {
+                        await pouchDB.manualSync();
+                        new Notice('Sync completed!', 3000);
+                    } catch (error: unknown) {
+                        new Notice(`Sync failed: ${getErrorMessage(error)}`, 5000);
+                    } finally {
+                        syncBtn.removeClass('is-loading');
+                    }
+                })();
             });
         }
         
@@ -600,9 +702,9 @@ class DashboardView extends ItemView {
             content.createEl('div', { text: label, cls: 'fsrs-stat-card-label' });
         };
         
-        createStatCard('layers', globalStats.total.toString(), 'Total Cards', 'neutral');
-        createStatCard('clock', globalStats.due.toString(), 'Due Today', 'due');
-        createStatCard('sparkles', globalStats.new.toString(), 'New Cards', 'new');
+        createStatCard('layers', globalStats.total.toString(), 'Total cards', 'neutral');
+        createStatCard('clock', globalStats.due.toString(), 'Due today', 'due');
+        createStatCard('sparkles', globalStats.new.toString(), 'New cards', 'new');
     }
     private renderDecks() {
         const decks = this.plugin.dataManager.getDecks();
@@ -658,7 +760,6 @@ class DashboardView extends ItemView {
         folderHeader.createEl('span', { text: folderName, cls: 'fsrs-folder-name' });
         
         // Deck count badge with total cards info
-        const totalCardsInFolder = decks.reduce((sum, deck) => sum + deck.cardIds.size, 0);
         const dueCardsInFolder = decks.reduce((sum, deck) => sum + deck.stats.due, 0);
         
         const countContainer = folderHeader.createDiv({ cls: 'fsrs-folder-count-container' });
@@ -676,7 +777,7 @@ class DashboardView extends ItemView {
         
         // Container for decks (collapsible)
         const decksContainer = folderContainer.createDiv({ cls: 'fsrs-folder-decks' });
-        decksContainer.style.display = 'none';
+        decksContainer.setCssProps({ 'display': 'none' });
         
         // Toggle collapse/expand (default to collapsed)
         let isCollapsed = true;
@@ -687,7 +788,7 @@ class DashboardView extends ItemView {
             folderHeader.toggleClass('is-collapsed', isCollapsed);
             folderHeader.toggleClass('is-expanded', !isCollapsed);
             folderHeader.setAttribute('aria-expanded', (!isCollapsed).toString());
-            decksContainer.style.display = isCollapsed ? 'none' : 'block';
+            decksContainer.setCssProps({ 'display': isCollapsed ? 'none' : 'block' });
             setIcon(chevronIcon, isCollapsed ? 'chevron-right' : 'chevron-down');
             setIcon(folderIcon, isCollapsed ? 'folder-closed' : 'folder-open');
         };
@@ -737,7 +838,7 @@ class DashboardView extends ItemView {
         
         // Click to open deck note
         cardHeader.addEventListener('click', () => {
-            this.app.workspace.openLinkText(deck.filePath, deck.filePath);
+            void this.app.workspace.openLinkText(deck.filePath, deck.filePath);
         });
         
         // Actions - full width buttons
@@ -803,7 +904,7 @@ class DashboardView extends ItemView {
         setIcon(iconEl, 'sparkles');
         
         // Title
-        emptyStateEl.createEl('h3', { text: 'Ready to Learn?', cls: 'fsrs-empty-title' });
+        emptyStateEl.createEl('h3', { text: 'Ready to learn?', cls: 'fsrs-empty-title' });
         
         // Description
         emptyStateEl.createEl('p', { 
@@ -832,6 +933,7 @@ class BrowseModal extends Modal {
     private answerContainer: HTMLElement;
     private prevButton: ButtonComponent;
     private nextButton: ButtonComponent;
+    private renderComponent: Component = new Component();
 
     constructor(app: App, plugin: FSRSFlashcardsPlugin, cards: Card[], deckName?: string) {
         super(app);
@@ -842,34 +944,35 @@ class BrowseModal extends Modal {
     }
 
     onOpen() {
+        this.renderComponent = new Component();
         this.containerEl.addClass('fsrs-review-modal-immersive');
         this.contentEl.empty();
-        this.contentEl.style.overflow = 'hidden';
+        this.contentEl.setCssProps({ 'overflow': 'hidden' });
         this.titleEl.setText(`Browsing: ${this.deckName}`);
         this.setupUI();
-        this.displayCurrentCard();
-        this.scope.register([], 'keydown', this.handleKeyPress.bind(this));
+        void this.displayCurrentCard();
+        this.scope.register([], 'keydown', (evt: KeyboardEvent) => this.handleKeyPress(evt));
     }
 private setupUI() {
         const container = this.contentEl.createDiv({ cls: 'fsrs-review-container' });
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.gap = 'var(--size-4-4)';
-        container.style.height = '100%';
+        container.setCssProps({ 'display': 'flex' });
+        container.setCssProps({ 'align-items': 'center' });
+        container.setCssProps({ 'gap': 'var(--size-4-4)' });
+        container.setCssProps({ 'height': '100%' });
 
         const leftControl = container.createDiv();
         this.prevButton = new ButtonComponent(leftControl)
             .setIcon('arrow-left')
-            .setTooltip('Previous card (Left arrow)')
+            .setTooltip('Previous card (left arrow)')
             .onClick(() => this.showPrevCard());
 
         const cardWrapper = container.createDiv();
-        cardWrapper.style.flex = '1';
-        cardWrapper.style.overflowY = 'auto';
-        cardWrapper.style.maxHeight = '100%';
+        cardWrapper.setCssProps({ 'flex': '1' });
+        cardWrapper.setCssProps({ 'overflow-y': 'auto' });
+        cardWrapper.setCssProps({ 'max-height': '100%' });
 
         this.cardContainer = cardWrapper.createDiv({ cls: 'fsrs-review-card' });
-        this.cardContainer.style.fontSize = `${this.plugin.settings.fontSize}px`;
+        this.cardContainer.setCssProps({ 'font-size': `${this.plugin.settings.fontSize}px` });
         this.frontEl = this.cardContainer.createDiv({ cls: 'fsrs-card-front' });
         this.answerContainer = this.cardContainer.createDiv({ cls: 'fsrs-card-answer' });
         this.answerContainer.createEl('hr');
@@ -878,18 +981,18 @@ private setupUI() {
         const rightControl = container.createDiv();
         this.nextButton = new ButtonComponent(rightControl)
             .setIcon('arrow-right')
-            .setTooltip('Next card (Right arrow)')
+            .setTooltip('Next card (right arrow)')
             .onClick(() => this.showNextCard());
     }
 
-    private displayCurrentCard() {
+    private async displayCurrentCard() {
         const card = this.cards[this.currentCardIndex];
         this.titleEl.setText(`Browsing (${this.currentCardIndex + 1}/${this.cards.length})`);
 
         this.frontEl.empty();
         this.backEl.empty();
-        MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.plugin);
-        MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.plugin);
+        await MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.renderComponent);
+        await MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.renderComponent);
 
         this.updateNavButtons();
     }
@@ -897,14 +1000,14 @@ private setupUI() {
     private showPrevCard() {
         if (this.currentCardIndex > 0) {
             this.currentCardIndex--;
-            this.displayCurrentCard();
+            void this.displayCurrentCard();
         }
     }
 
     private showNextCard() {
         if (this.currentCardIndex < this.cards.length - 1) {
             this.currentCardIndex++;
-            this.displayCurrentCard();
+            void this.displayCurrentCard();
         }
     }
 
@@ -924,23 +1027,29 @@ private setupUI() {
                 break;
         }
     }
+    onClose() {
+        this.renderComponent.unload();
+        this.contentEl.empty();
+    }
 }
 
 // --- UI: REVIEW MODAL ---
 class ReviewModal extends Modal {
-    private plugin: FSRSFlashcardsPlugin; private queue: Card[]; private deckName: string | null; private currentCardIndex = 0; private state: 'question' | 'answer' = 'question'; private cardContainer: HTMLElement; private frontEl: HTMLElement; private backEl: HTMLElement; private answerContainer: HTMLElement; private controlsContainer: HTMLElement; private showAnswerButton: ButtonComponent;
+    private plugin: FSRSFlashcardsPlugin; private queue: Card[]; private deckName: string | null; private currentCardIndex = 0; private state: 'question' | 'answer' = 'question'; private cardContainer: HTMLElement; private frontEl: HTMLElement; private backEl: HTMLElement; private answerContainer: HTMLElement; private controlsContainer: HTMLElement; private showAnswerButton: ButtonComponent; private renderComponent: Component = new Component();
     constructor(app: App, plugin: FSRSFlashcardsPlugin, queue: Card[], deckName?: string) { super(app); this.plugin = plugin; this.queue = queue; this.deckName = deckName || null; }
     onOpen() {
+        this.renderComponent = new Component();
         this.containerEl.addClass('fsrs-review-modal-immersive');
         this.contentEl.empty();
-        this.contentEl.style.overflow = 'hidden';
+        this.contentEl.setCssProps({ 'overflow': 'hidden' });
         const deckPrefix = this.deckName ? `${this.deckName} • ` : '';
         this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
         this.setupUI();
-        this.showNextCard();
-        this.scope.register([], 'keydown', this.handleKeyPress.bind(this));
+        void this.showNextCard();
+        this.scope.register([], 'keydown', (evt: KeyboardEvent) => this.handleKeyPress(evt));
     }
     onClose() {
+        this.renderComponent.unload();
         this.contentEl.empty();
         this.plugin.refreshDashboardView();
     }
@@ -952,7 +1061,7 @@ class ReviewModal extends Modal {
             const info = `Stability: ${data.stability.toFixed(2)}\nDifficulty: ${data.difficulty.toFixed(2)}\nReps: ${data.reps}\nLapses: ${data.lapses}\nDue: ${data.due.toLocaleDateString()}`;
             new Notice(info, 10000);
         });
-        this.modalEl.find('.modal-title').style.cursor = 'help';
+        this.modalEl.find('.modal-title').setCssProps({ 'cursor': 'help' });
 
         const headerControls = this.modalEl.querySelector('.modal-header-controls');
         if (headerControls) {
@@ -960,50 +1069,50 @@ class ReviewModal extends Modal {
             setIcon(editBtn, 'edit');
             editBtn.setAttribute('aria-label', 'Edit this card');
             editBtn.addEventListener('click', () => {
-                this.app.workspace.openLinkText(card.filePath, card.filePath);
+                void this.app.workspace.openLinkText(card.filePath, card.filePath);
                 this.close();
             });
             headerControls.prepend(editBtn);
         }
 
         const container = this.contentEl.createDiv({ cls: 'fsrs-review-container' });
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.height = '100%';
+        container.setCssProps({ 'display': 'flex' });
+        container.setCssProps({ 'flex-direction': 'column' });
+        container.setCssProps({ 'height': '100%' });
 
         this.cardContainer = container.createDiv({ cls: 'fsrs-review-card' });
-        this.cardContainer.style.flex = '1 1 auto';
-        this.cardContainer.style.overflowY = 'auto';
-        this.cardContainer.style.fontSize = `${this.plugin.settings.fontSize}px`;
+        this.cardContainer.setCssProps({ 'flex': '1 1 auto' });
+        this.cardContainer.setCssProps({ 'overflow-y': 'auto' });
+        this.cardContainer.setCssProps({ 'font-size': `${this.plugin.settings.fontSize}px` });
 
         this.frontEl = this.cardContainer.createDiv({ cls: 'fsrs-card-front' });
         this.answerContainer = this.cardContainer.createDiv({ cls: 'fsrs-card-answer' });
-        this.answerContainer.style.display = 'none';
+        this.answerContainer.setCssProps({ 'display': 'none' });
         this.answerContainer.createEl('hr');
         this.backEl = this.answerContainer.createDiv({ cls: 'fsrs-card-back' });
 
         const bottomControlsContainer = container.createDiv({ cls: 'fsrs-bottom-controls' });
-        bottomControlsContainer.style.flex = '0 0 auto';
-        bottomControlsContainer.style.paddingTop = 'var(--size-4-4)';
+        bottomControlsContainer.setCssProps({ 'flex': '0 0 auto' });
+        bottomControlsContainer.setCssProps({ 'padding-top': 'var(--size-4-4)' });
 
         this.showAnswerButton = new ButtonComponent(bottomControlsContainer)
-            .setButtonText('Show Answer')
+            .setButtonText('Show answer')
             .setCta()
             .onClick(() => this.showAnswer());
         this.showAnswerButton.buttonEl.addClass('fsrs-show-answer-btn');
-        this.showAnswerButton.buttonEl.style.width = '100%';
-        this.showAnswerButton.buttonEl.style.marginBottom = 'var(--size-4-4)';
-        this.showAnswerButton.buttonEl.style.padding = 'var(--size-4-2) var(--size-4-4)';
+        this.showAnswerButton.buttonEl.setCssProps({ 'width': '100%' });
+        this.showAnswerButton.buttonEl.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
+        this.showAnswerButton.buttonEl.setCssProps({ 'padding': 'var(--size-4-2) var(--size-4-4)' });
 
         this.controlsContainer = bottomControlsContainer.createDiv({ cls: 'fsrs-review-controls' });
-        this.controlsContainer.style.marginTop = 'var(--size-4-4)';
-        this.controlsContainer.style.display = 'none';
+        this.controlsContainer.setCssProps({ 'margin-top': 'var(--size-4-4)' });
+        this.controlsContainer.setCssProps({ 'display': 'none' });
     }
     private createControlButtons() {
         this.controlsContainer.empty();
-        this.controlsContainer.style.display = 'grid';
-        this.controlsContainer.style.gridTemplateColumns = 'repeat(4, 1fr)';
-        this.controlsContainer.style.gap = 'var(--size-4-2)';
+        this.controlsContainer.setCssProps({ 'display': 'grid' });
+        this.controlsContainer.setCssProps({ 'grid-template-columns': 'repeat(4, 1fr)' });
+        this.controlsContainer.setCssProps({ 'gap': 'var(--size-4-2)' });
         const card = this.getCurrentCard();
         const intervals = this.plugin.dataManager.getNextReviewIntervals(card);
         
@@ -1011,10 +1120,10 @@ class ReviewModal extends Modal {
             const btn = new ButtonComponent(this.controlsContainer)
                 .onClick(() => this.handleRating(rating));
             btn.buttonEl.addClass('fsrs-rating-btn');
-            btn.buttonEl.style.flexDirection = 'column';
-            btn.buttonEl.style.height = 'auto';
-            btn.buttonEl.style.padding = 'var(--size-4-3)';
-            btn.buttonEl.style.gap = '4px';
+            btn.buttonEl.setCssProps({ 'flex-direction': 'column' });
+            btn.buttonEl.setCssProps({ 'height': 'auto' });
+            btn.buttonEl.setCssProps({ 'padding': 'var(--size-4-3)' });
+            btn.buttonEl.setCssProps({ 'gap': '4px' });
             
             btn.buttonEl.createEl('strong', { 
                 text,
@@ -1038,7 +1147,7 @@ class ReviewModal extends Modal {
         createButton('Good', Rating.Good, intervals[Rating.Good], 'mod-cta');
         createButton('Easy', Rating.Easy, intervals[Rating.Easy]);
     }
-    private showNextCard() {
+    private async showNextCard() {
         if (this.currentCardIndex >= this.queue.length) { this.showCompletionScreen(); return; }
         this.state = 'question';
         const card = this.getCurrentCard();
@@ -1046,38 +1155,38 @@ class ReviewModal extends Modal {
         this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
         this.frontEl.empty();
         this.backEl.empty();
-        MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.plugin);
-        MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.plugin);
+        await MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.renderComponent);
+        await MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.renderComponent);
 
-        this.showAnswerButton.buttonEl.style.display = 'block';
-        this.controlsContainer.style.display = 'none';
-        this.answerContainer.style.display = 'none';
+        this.showAnswerButton.buttonEl.setCssProps({ 'display': 'block' });
+        this.controlsContainer.setCssProps({ 'display': 'none' });
+        this.answerContainer.setCssProps({ 'display': 'none' });
     }
     private showAnswer() {
         if (this.state === 'answer') return;
         this.createControlButtons();
         this.state = 'answer';
-        this.showAnswerButton.buttonEl.style.display = 'none';
-        this.controlsContainer.style.display = 'grid';
-        this.answerContainer.style.display = 'block';
+        this.showAnswerButton.buttonEl.setCssProps({ 'display': 'none' });
+        this.controlsContainer.setCssProps({ 'display': 'grid' });
+        this.answerContainer.setCssProps({ 'display': 'block' });
     }
     private handleRating(rating: Rating) {
         this.plugin.dataManager.updateCard(this.getCurrentCard(), rating);
         this.currentCardIndex++;
-        this.cardContainer.style.transition = 'opacity 0.2s ease-in-out';
-        this.cardContainer.style.opacity = '0';
+        this.cardContainer.setCssProps({ 'transition': 'opacity 0.2s ease-in-out' });
+        this.cardContainer.setCssProps({ 'opacity': '0' });
         setTimeout(() => {
-            this.showNextCard();
-            this.cardContainer.style.opacity = '1';
+            void this.showNextCard();
+            this.cardContainer.setCssProps({ 'opacity': '1' });
         }, 200);
     }
     private showCompletionScreen() {
         this.contentEl.empty();
-        this.titleEl.setText('Session Complete!');
+        this.titleEl.setText('Session complete!');
         const container = this.contentEl.createDiv({ cls: 'fsrs-completion-screen' });
         container.createEl('h2', { text: 'Great work!' });
         container.createEl('p', { text: `You have completed ${this.queue.length} cards.` });
-        new ButtonComponent(container).setButtonText('Return to Dashboard').setCta().onClick(() => this.close());
+        new ButtonComponent(container).setButtonText('Return to dashboard').setCta().onClick(() => this.close());
     }
     private handleKeyPress(evt: KeyboardEvent) {
         // Handle Escape to close
@@ -1123,7 +1232,7 @@ class ReviewModal extends Modal {
 // --- UI: STATS MODAL ---
 class StatsModal extends Modal {
     private plugin: FSRSFlashcardsPlugin;
-    private chartInstances: Chart[] = [];
+    private chartInstances: Array<Chart<'line' | 'bar', number[], string>> = [];
 
     constructor(app: App, plugin: FSRSFlashcardsPlugin) {
         super(app);
@@ -1149,10 +1258,10 @@ class StatsModal extends Modal {
             card.createEl('div', { text: label, cls: 'fsrs-stat-header-label' });
         };
         
-        createHeaderCard('check-circle', stats.reviewsToday.toString(), 'Reviews Today', 'success');
-        createHeaderCard('calendar', stats.forecast.reduce((a, b) => a + b, 0).toString(), 'Due This Week', 'warning');
-        createHeaderCard('trending-up', stats.maturity.mature.toString(), 'Mature Cards', 'info');
-        createHeaderCard('award', (stats.maturity.mature + stats.maturity.young).toString(), 'Total Learned', 'neutral');
+        createHeaderCard('check-circle', stats.reviewsToday.toString(), 'Reviews today', 'success');
+        createHeaderCard('calendar', stats.forecast.reduce((a, b) => a + b, 0).toString(), 'Due this week', 'warning');
+        createHeaderCard('trending-up', stats.maturity.mature.toString(), 'Mature cards', 'info');
+        createHeaderCard('award', (stats.maturity.mature + stats.maturity.young).toString(), 'Total learned', 'neutral');
 
         // Charts section
         const chartsSection = this.contentEl.createDiv({ cls: 'fsrs-stats-charts' });
@@ -1162,7 +1271,7 @@ class StatsModal extends Modal {
         const activityHeader = activityCard.createDiv({ cls: 'fsrs-chart-header' });
         const activityIcon = activityHeader.createDiv({ cls: 'fsrs-chart-icon' });
         setIcon(activityIcon, 'activity');
-        activityHeader.createEl('h3', { text: '30-Day Activity' });
+        activityHeader.createEl('h3', { text: '30-day activity' });
         
         const activityCanvas = activityCard.createEl('canvas', { cls: 'fsrs-chart-canvas' });
         const activityLabels = Array.from({ length: 30 }, (_, i) => {
@@ -1203,7 +1312,7 @@ class StatsModal extends Modal {
         const forecastHeader = forecastCard.createDiv({ cls: 'fsrs-chart-header' });
         const forecastIcon = forecastHeader.createDiv({ cls: 'fsrs-chart-icon' });
         setIcon(forecastIcon, 'calendar');
-        forecastHeader.createEl('h3', { text: '7-Day Forecast' });
+        forecastHeader.createEl('h3', { text: '7-day forecast' });
         
         const forecastCanvas = forecastCard.createEl('canvas', { cls: 'fsrs-chart-canvas' });
         const forecastLabels = Array.from({ length: 7 }, (_, i) => {
@@ -1246,12 +1355,22 @@ class CustomStudyModal extends Modal {
     private plugin: FSRSFlashcardsPlugin; private tags: string = ""; private state: "new" | "due" | "learning" | "all" = "due"; private limit: number = 50; private unlimited: boolean = false;
     constructor(app: App, plugin: FSRSFlashcardsPlugin) { super(app); this.plugin = plugin; }
     onOpen() {
-        this.contentEl.empty(); this.titleEl.setText("Custom Study Session");
-        new Setting(this.contentEl).setName("Filter by Tags").setDesc("Comma-separated, e.g., #calculus, #chapter1").addText(text => text.setValue(this.tags).onChange(val => this.tags = val));
-        new Setting(this.contentEl).setName("Filter by Card State").addDropdown(dd => dd.addOption("due", "Due").addOption("new", "New").addOption("learning", "Learning").addOption("all", "All Cards (Cram Mode)").setValue(this.state).onChange(val => this.state = val as any));
-        new Setting(this.contentEl).setName("Card Limit").setDesc("Set to 0 or enable unlimited for no limit").addText(text => text.setValue(this.limit.toString()).onChange(val => this.limit = parseInt(val) || 0));
-        new Setting(this.contentEl).setName("Unlimited Cards").setDesc("Ignore card limit - study all matching cards (for exam prep)").addToggle(toggle => toggle.setValue(this.unlimited).onChange(val => this.unlimited = val));
-        new Setting(this.contentEl).addButton(btn => btn.setButtonText("Start Studying").setCta().onClick(() => this.startSession()));
+        this.contentEl.empty(); this.titleEl.setText("Custom study session");
+        new Setting(this.contentEl).setName("Filter by tags").setDesc("Comma-separated, e.g., #calculus, #chapter1").addText(text => text.setValue(this.tags).onChange(val => this.tags = val));
+        new Setting(this.contentEl).setName("Filter by card state").addDropdown((dropdown) => dropdown
+            .addOption("due", "Due")
+            .addOption("new", "New")
+            .addOption("learning", "Learning")
+            .addOption("all", "All cards (cram mode)")
+            .setValue(this.state)
+            .onChange((value) => {
+                if (value === "due" || value === "new" || value === "learning" || value === "all") {
+                    this.state = value;
+                }
+            }));
+        new Setting(this.contentEl).setName("Card limit").setDesc("Set to 0 or enable unlimited for no limit").addText(text => text.setValue(this.limit.toString()).onChange(val => this.limit = parseInt(val) || 0));
+        new Setting(this.contentEl).setName("Unlimited cards").setDesc("Ignore card limit - study all matching cards (for exam prep)").addToggle(toggle => toggle.setValue(this.unlimited).onChange(val => this.unlimited = val));
+        new Setting(this.contentEl).addButton(btn => btn.setButtonText("Start studying").setCta().onClick(() => this.startSession()));
     }
     startSession() {
         const now = new Date();
@@ -1266,7 +1385,12 @@ class CustomStudyModal extends Modal {
             }
             if (requiredTags.length > 0) {
                 const fileCache = this.app.metadataCache.getCache(card.filePath);
-                const fileTags = (fileCache?.tags?.map(t => t.tag.toLowerCase()) || []).concat(fileCache?.frontmatter?.tags?.map((t: string) => `#${t.toLowerCase()}`) || []);
+                const inlineTags = (fileCache?.tags ?? []).map((tag) => tag.tag.toLowerCase());
+                const frontmatter = isRecord(fileCache?.frontmatter) ? fileCache.frontmatter : null;
+                const frontmatterTags = frontmatter
+                    ? toStringArray(frontmatter.tags).map((tag) => `#${tag.toLowerCase()}`)
+                    : [];
+                const fileTags = inlineTags.concat(frontmatterTags);
                 return requiredTags.every(reqTag => fileTags.includes(reqTag));
             }
             return true;
@@ -1294,48 +1418,48 @@ class ResetProgressModal extends Modal {
     
     onOpen() {
         this.contentEl.empty();
-        this.titleEl.setText("🚨 Reset All Card Progress");
+        this.titleEl.setText('Reset all card progress');
         
         // Warning message
         const warningContainer = this.contentEl.createDiv({ cls: 'fsrs-reset-warning' });
-        warningContainer.style.backgroundColor = 'var(--background-modifier-error)';
-        warningContainer.style.padding = 'var(--size-4-4)';
-        warningContainer.style.borderRadius = 'var(--radius-m)';
-        warningContainer.style.marginBottom = 'var(--size-4-4)';
+        warningContainer.setCssProps({ 'background-color': 'var(--background-modifier-error)' });
+        warningContainer.setCssProps({ 'padding': 'var(--size-4-4)' });
+        warningContainer.setCssProps({ 'border-radius': 'var(--radius-m)' });
+        warningContainer.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
         
         warningContainer.createEl('h3', { 
-            text: '⚠️ WARNING: This action cannot be undone!',
+            text: 'Warning: this action cannot be undone.',
             attr: { style: 'color: var(--text-error); margin-top: 0;' }
         });
         
         warningContainer.createEl('p', { 
-            text: 'This will permanently delete ALL your review history and card progress:' 
+            text: 'This will permanently delete all your review history and card progress:' 
         });
         
         const consequences = warningContainer.createEl('ul');
-        consequences.createEl('li', { text: 'All cards will be reset to "New" status' });
+        consequences.createEl('li', { text: 'All cards will be reset to "new" status' });
         consequences.createEl('li', { text: 'All review history will be deleted' });
         consequences.createEl('li', { text: 'All FSRS scheduling data will be cleared' });
         consequences.createEl('li', { text: 'You will start from scratch with every card' });
         
         // Stats display
         const statsContainer = this.contentEl.createDiv({ cls: 'fsrs-reset-stats' });
-        statsContainer.style.marginBottom = 'var(--size-4-4)';
+        statsContainer.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
         
         const allCards = this.plugin.dataManager.getAllCards();
-        const cardsWithProgress = allCards.filter(c => c.fsrsData && c.fsrsData.state !== 0).length;
+        const cardsWithProgress = allCards.filter((card) => card.fsrsData && card.fsrsData.state !== State.New).length;
         
-        statsContainer.createEl('h4', { text: 'Current Data:' });
+        statsContainer.createEl('h4', { text: 'Current data:' });
         const statsList = statsContainer.createEl('ul');
         statsList.createEl('li', { text: `Total cards: ${allCards.length}` });
         statsList.createEl('li', { text: `Cards with progress: ${cardsWithProgress}` });
         
         // Confirmation input
         new Setting(this.contentEl)
-            .setName('Type "DELETE" to confirm')
+            .setName('Type "delete" to confirm')
             .setDesc('This confirmation prevents accidental data loss')
             .addText(text => text
-                .setPlaceholder('DELETE')
+                .setPlaceholder('Delete')
                 .onChange(val => this.confirmText = val));
         
         // Buttons
@@ -1344,11 +1468,11 @@ class ResetProgressModal extends Modal {
                 .setButtonText('Cancel')
                 .onClick(() => this.close()))
             .addButton(btn => btn
-                .setButtonText('💥 DELETE ALL PROGRESS')
+                .setButtonText('Delete all progress')
                 .setWarning()
                 .onClick(async () => {
-                    if (this.confirmText !== 'DELETE') {
-                        new Notice('Type "DELETE" to confirm', 3000);
+                    if (this.confirmText.trim().toLowerCase() !== 'delete') {
+                        new Notice('Type "delete" to confirm', 3000);
                         return;
                     }
                     await this.resetAllProgress();
@@ -1366,10 +1490,10 @@ class ResetProgressModal extends Modal {
             this.plugin.refreshDashboardView();
             
             this.close();
-            new Notice('✅ All card progress has been reset! All cards are now "New".', 5000);
+            new Notice('All card progress has been reset. All cards are now "new".', 5000);
         } catch (error) {
             console.error('Failed to reset progress:', error);
-            new Notice(`❌ Failed to reset: ${error.message}`, 5000);
+            new Notice(`Failed to reset: ${getErrorMessage(error)}`, 5000);
         }
     }
 }
@@ -1380,10 +1504,10 @@ class FSRSSettingsTab extends PluginSettingTab {
     display(): void { 
         const { containerEl } = this; 
         containerEl.empty(); 
-        containerEl.createEl('h1', { text: 'Lemma settings' }); 
+        ; 
         
-        // Database Settings
-        containerEl.createEl('h2', { text: 'Database Settings' });
+        // Database
+        new Setting(containerEl).setName("Database").setHeading();
         
         new Setting(containerEl)
             .setName('Use PouchDB (IndexedDB)')
@@ -1398,20 +1522,20 @@ class FSRSSettingsTab extends PluginSettingTab {
         
         new Setting(containerEl)
             .setName('Migrate to PouchDB')
-            .setDesc('Convert your existing data.json to PouchDB format. (Requires PouchDB to be enabled)')
+            .setDesc('Convert your existing data.json to PouchDB format (requires PouchDB to be enabled).')
             .setDisabled(!this.plugin.settings.usePouchDB)
             .addButton(btn => btn
-                .setButtonText('Migrate Now')
+                .setButtonText('Migrate now')
                 .setCta()
                 .onClick(async () => {
                     await this.migrateData();
                 }));
         
-        // Sync Settings
-        containerEl.createEl('h2', { text: 'Sync Settings' });
+        // Sync
+        new Setting(containerEl).setName("Sync").setHeading();
         
         new Setting(containerEl)
-            .setName('Enable Sync')
+            .setName('Enable sync')
             .setDesc('Sync your flashcard data with a CouchDB server')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.syncEnabled)
@@ -1428,7 +1552,7 @@ class FSRSSettingsTab extends PluginSettingTab {
                 }));
         
         new Setting(containerEl)
-            .setName('CouchDB Server URL')
+            .setName('CouchDB server URL')
             .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/lemma)')
             .addText(text => text
                 .setPlaceholder('https://your-server.com:5984/lemma')
@@ -1439,10 +1563,10 @@ class FSRSSettingsTab extends PluginSettingTab {
                 }));
         
         new Setting(containerEl)
-            .setName('Database Name')
+            .setName('Database name')
             .setDesc('The name of the database on your CouchDB server')
             .addText(text => text
-                .setPlaceholder('lemma')
+                .setPlaceholder('Lemma')
                 .setValue(this.plugin.settings.syncDbName)
                 .onChange(async (value) => {
                     this.plugin.settings.syncDbName = value.trim() || 'lemma';
@@ -1453,7 +1577,7 @@ class FSRSSettingsTab extends PluginSettingTab {
             .setName('Username')
             .setDesc('CouchDB username for authentication')
             .addText(text => text
-                .setPlaceholder('admin')
+                .setPlaceholder('Admin')
                 .setValue(this.plugin.settings.syncUsername)
                 .onChange(async (value) => {
                     this.plugin.settings.syncUsername = value;
@@ -1476,22 +1600,143 @@ class FSRSSettingsTab extends PluginSettingTab {
         
         if (this.plugin.settings.syncEnabled && this.plugin.dataManager['pouchDB']) {
             new Setting(containerEl)
-                .setName('Sync Status')
+                .setName('Sync status')
                 .setDesc('Check your current sync status')
                 .addButton(btn => btn
-                    .setButtonText('Check Status')
+                    .setButtonText('Check status')
                     .onClick(async () => {
                         const pouchDB = this.plugin.dataManager['pouchDB'];
                         if (pouchDB) {
                             const status = await pouchDB.getSyncStatus();
                             const info = await pouchDB.getDatabaseInfo();
-                            new Notice(`Sync: ${status.enabled ? 'Active' : 'Inactive'}\nDocs: ${info.doc_count}\nLast Sync: ${status.lastSyncTime || 'Never'}`, 10000);
+                            const docCount = getDocCount(info);
+                            new Notice(`Sync status: ${status.enabled ? 'Active' : 'Inactive'}\nDocs: ${docCount}\nLast sync: ${status.lastSyncTime || 'Never'}`, 10000);
                         }
                     }));
         }
         
-        new Setting(containerEl).setName('Deck Tag').setDesc('The tag to identify deck files (e.g., "flashcards" for #flashcards).').addText(text => text.setPlaceholder('flashcards').setValue(this.plugin.settings.deckTag).onChange(async (value) => { this.plugin.settings.deckTag = value.trim(); await this.plugin.saveSettings(); await this.plugin.dataManager.buildIndex(); this.plugin.refreshDashboardView(); })); 
-        containerEl.createEl('h2', { text: 'Global Review Settings' }); new Setting(containerEl).setName('Max new cards per day').setDesc("Applies to all decks.").addText(text => text.setValue(this.plugin.settings.newCardsPerDay.toString()).onChange(async (value) => { const num = parseInt(value, 10); if (!isNaN(num) && num >= 0) { this.plugin.settings.newCardsPerDay = num; await this.plugin.saveSettings(); } })); new Setting(containerEl).setName('Max reviews per day').setDesc("Applies to all decks.").addText(text => text.setValue(this.plugin.settings.reviewsPerDay.toString()).onChange(async (value) => { const num = parseInt(value, 10); if (!isNaN(num) && num >= 0) { this.plugin.settings.reviewsPerDay = num; await this.plugin.saveSettings(); } })); containerEl.createEl('h2', { text: 'Appearance' }); new Setting(containerEl).setName('Review font size').addSlider(slider => slider.setLimits(12, 32, 1).setValue(this.plugin.settings.fontSize).setDynamicTooltip().onChange(async (value) => { this.plugin.settings.fontSize = value; await this.plugin.saveSettings(); })); containerEl.createEl('h2', { text: 'FSRS Parameters' }); containerEl.createEl('p', { text: 'These settings control the scheduling algorithm. Only change them if you know what you are doing.', cls: 'setting-item-description' }); new Setting(containerEl).setName('Reset FSRS Parameters').setDesc('Reset to FSRS defaults.').addButton(btn => btn.setButtonText('Reset').setWarning().onClick(async () => { this.plugin.settings.fsrsParams = generatorParameters(); await this.plugin.saveSettings(); this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams); this.display(); })); new Setting(containerEl).setName('Request Retention').setDesc('The desired retention rate (0.7 to 0.99).').addText(text => text.setValue(this.plugin.settings.fsrsParams.request_retention.toString()).onChange(async (value) => { const num = parseFloat(value); if (!isNaN(num) && num > 0 && num < 1) { this.plugin.settings.fsrsParams.request_retention = num; await this.plugin.saveSettings(); this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams); } })); new Setting(containerEl).setName('Maximum Interval').setDesc('The maximum number of days between reviews.').addText(text => text.setValue(this.plugin.settings.fsrsParams.maximum_interval.toString()).onChange(async (value) => { const num = parseInt(value, 10); if (!isNaN(num) && num > 0) { this.plugin.settings.fsrsParams.maximum_interval = num; await this.plugin.saveSettings(); this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams); } }));         new Setting(containerEl).setName('FSRS Weights').setDesc('Comma-separated FSRS weights (17 values).').addTextArea(text => { text.setValue(this.plugin.settings.fsrsParams.w.join(', ')).onChange(async (value) => { try { const weights = value.split(',').map(v => parseFloat(v.trim())); if (weights.length === 17 && weights.every(w => !isNaN(w))) { this.plugin.settings.fsrsParams.w = weights; await this.plugin.saveSettings(); this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams); } } catch (e) { console.error("Invalid FSRS weights format", e); } }); text.inputEl.rows = 5; text.inputEl.style.width = '100%'; }); }
+        new Setting(containerEl)
+            .setName('Deck tag')
+            .setDesc('The tag used to identify deck files (for example, "flashcards" for #flashcards).')
+            .addText((text) => text
+                .setPlaceholder('Flashcards')
+                .setValue(this.plugin.settings.deckTag)
+                .onChange(async (value) => {
+                    this.plugin.settings.deckTag = value.trim();
+                    await this.plugin.saveSettings();
+                    await this.plugin.dataManager.buildIndex();
+                    this.plugin.refreshDashboardView();
+                }));
+
+        new Setting(containerEl).setName('Global review defaults').setHeading();
+
+        new Setting(containerEl)
+            .setName('Max new cards per day')
+            .setDesc('Applies to all decks.')
+            .addText((text) => text
+                .setValue(this.plugin.settings.newCardsPerDay.toString())
+                .onChange(async (value) => {
+                    const num = parseInt(value, 10);
+                    if (!isNaN(num) && num >= 0) {
+                        this.plugin.settings.newCardsPerDay = num;
+                        await this.plugin.saveSettings();
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('Max reviews per day')
+            .setDesc('Applies to all decks.')
+            .addText((text) => text
+                .setValue(this.plugin.settings.reviewsPerDay.toString())
+                .onChange(async (value) => {
+                    const num = parseInt(value, 10);
+                    if (!isNaN(num) && num >= 0) {
+                        this.plugin.settings.reviewsPerDay = num;
+                        await this.plugin.saveSettings();
+                    }
+                }));
+
+        new Setting(containerEl).setName('Appearance').setHeading();
+
+        new Setting(containerEl)
+            .setName('Review font size')
+            .addSlider((slider) => slider
+                .setLimits(12, 32, 1)
+                .setValue(this.plugin.settings.fontSize)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.fontSize = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl).setName('FSRS parameters').setHeading();
+        containerEl.createEl('p', {
+            text: 'These settings control the scheduling algorithm. Change them only if you know what you are doing.',
+            cls: 'setting-item-description'
+        });
+
+        new Setting(containerEl)
+            .setName('Reset FSRS parameters')
+            .setDesc('Reset to FSRS defaults.')
+            .addButton((btn) => btn
+                .setButtonText('Reset')
+                .setWarning()
+                .onClick(async () => {
+                    this.plugin.settings.fsrsParams = generatorParameters();
+                    await this.plugin.saveSettings();
+                    this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams);
+                    this.display();
+                }));
+
+        new Setting(containerEl)
+            .setName('Request retention')
+            .setDesc('The desired retention rate (0.7 to 0.99).')
+            .addText((text) => text
+                .setValue(this.plugin.settings.fsrsParams.request_retention.toString())
+                .onChange(async (value) => {
+                    const num = parseFloat(value);
+                    if (!isNaN(num) && num > 0 && num < 1) {
+                        this.plugin.settings.fsrsParams.request_retention = num;
+                        await this.plugin.saveSettings();
+                        this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams);
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('Maximum interval')
+            .setDesc('The maximum number of days between reviews.')
+            .addText((text) => text
+                .setValue(this.plugin.settings.fsrsParams.maximum_interval.toString())
+                .onChange(async (value) => {
+                    const num = parseInt(value, 10);
+                    if (!isNaN(num) && num > 0) {
+                        this.plugin.settings.fsrsParams.maximum_interval = num;
+                        await this.plugin.saveSettings();
+                        this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams);
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('FSRS weights')
+            .setDesc('Comma-separated FSRS weights (17 values).')
+            .addTextArea((text) => {
+                text.setValue(this.plugin.settings.fsrsParams.w.join(', '))
+                    .onChange(async (value) => {
+                        try {
+                            const weights = value.split(',').map((entry) => parseFloat(entry.trim()));
+                            if (weights.length === 17 && weights.every((weight) => !isNaN(weight))) {
+                                this.plugin.settings.fsrsParams.w = weights;
+                                await this.plugin.saveSettings();
+                                this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams);
+                            }
+                        } catch (error: unknown) {
+                            console.error('Invalid FSRS weights format', error);
+                        }
+                    });
+                text.inputEl.rows = 5;
+                text.inputEl.setCssProps({ 'width': '100%' });
+            });
+    }
     
     async migrateData() {
         const pouchDB = this.plugin.dataManager['pouchDB'];
@@ -1504,7 +1749,7 @@ class FSRSSettingsTab extends PluginSettingTab {
             new Notice('Starting migration... This may take a while for large collections.');
             
             // Load legacy data
-            const legacyData = await this.plugin.loadData();
+            const legacyData = (await this.plugin.loadData()) as LegacyPluginData | null;
             if (!legacyData) {
                 new Notice('No legacy data found to migrate');
                 return;
@@ -1537,7 +1782,7 @@ class FSRSSettingsTab extends PluginSettingTab {
             
         } catch (error) {
             console.error('Migration failed:', error);
-            new Notice(`Migration failed: ${error.message}`);
+            new Notice(`Migration failed: ${getErrorMessage(error)}`);
         }
     }
     
@@ -1570,7 +1815,7 @@ class FSRSSettingsTab extends PluginSettingTab {
             new Notice('Sync enabled successfully!');
         } catch (error) {
             console.error('Sync setup failed:', error);
-            new Notice(`Sync setup failed: ${error.message}`);
+            new Notice(`Sync setup failed: ${getErrorMessage(error)}`);
             this.plugin.settings.syncEnabled = false;
             await this.plugin.saveSettings();
         }
@@ -1618,7 +1863,7 @@ class FSRSSettingsTab extends PluginSettingTab {
 export default class FSRSFlashcardsPlugin extends Plugin {
     settings: FSRSSettings; dataManager: DataManager;
     async onload() {
-        console.log('Loading Lemma plugin');
+        console.debug('Loading Lemma plugin');
         this.addStyle();
         await this.loadSettings();
         this.dataManager = new DataManager(this);
@@ -1635,13 +1880,19 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         this.addSettingTab(new FSRSSettingsTab(this.app, this));
         this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
         this.addCommand({ id: 'add-fsrs-flashcard', name: 'Add a new flashcard', editorCallback: (editor: Editor) => { const blockId = generateBlockId(); const template = `\n\n---card--- ^${blockId}\n\n---\n\n`; const cursor = editor.getCursor(); editor.replaceRange(template, cursor); editor.setCursor({ line: cursor.line + 3, ch: 0 }); } });
-        this.addCommand({ id: 'open-fsrs-dashboard', name: 'Open dashboard', callback: () => this.activateView() });
+        this.addCommand({
+            id: 'open-fsrs-dashboard',
+            name: 'Open dashboard',
+            callback: () => {
+                void this.activateView();
+            }
+        });
         
         // Add sync commands
         if (this.settings.usePouchDB) {
             this.addCommand({
                 id: 'sync-now',
-                name: 'Sync Now',
+                name: 'Sync now',
                 callback: async () => {
                     if (!this.settings.syncEnabled) {
                         new Notice('Sync is not enabled. Enable it in settings.');
@@ -1658,7 +1909,7 @@ export default class FSRSFlashcardsPlugin extends Plugin {
             
             this.addCommand({
                 id: 'check-sync-status',
-                name: 'Check Sync Status',
+                name: 'Check sync status',
                 callback: async () => {
                     const pouchDB = this.dataManager.getPouchDB();
                     if (!pouchDB) {
@@ -1667,7 +1918,8 @@ export default class FSRSFlashcardsPlugin extends Plugin {
                     }
                     const status = await pouchDB.getSyncStatus();
                     const info = await pouchDB.getDatabaseInfo();
-                    new Notice(`Sync Status:\n${status.enabled ? '✓ Active' : '✗ Inactive'}\nURL: ${status.remoteUrl || 'Not set'}\nDocuments: ${info.doc_count}\nLast Sync: ${status.lastSyncTime ? new Date(status.lastSyncTime).toLocaleString() : 'Never'}`, 10000);
+                    const docCount = getDocCount(info);
+                    new Notice(`Sync status:\n${status.enabled ? '✓ Active' : '✗ Inactive'}\nURL: ${status.remoteUrl || 'Not set'}\nDocuments: ${docCount}\nLast sync: ${status.lastSyncTime ? new Date(status.lastSyncTime).toLocaleString() : 'Never'}`, 10000);
                 }
             });
         }
@@ -1675,7 +1927,7 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         // Nuclear option: Reset all card progress
         this.addCommand({
             id: 'reset-all-card-progress',
-            name: '🚨 Reset All Card Progress (Nuclear Option)',
+            name: 'Reset all card progress (nuclear option)',
             callback: async () => {
                 new ResetProgressModal(this.app, this).open();
             }
@@ -1683,1158 +1935,72 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         
         const debouncedRefresh = debounce(() => { this.dataManager.recalculateAllDeckStats(); this.refreshDashboardView(); }, 500, true);
         const updateAndRefresh = async (file: TFile) => { await this.dataManager.updateFile(file); debouncedRefresh(); };
-        this.registerEvent(this.app.vault.on('create', (file) => file instanceof TFile && updateAndRefresh(file)));
-        this.registerEvent(this.app.vault.on('modify', (file) => file instanceof TFile && updateAndRefresh(file)));
-        this.registerEvent(this.app.vault.on('delete', async (file) => { if (file instanceof TFile) { this.dataManager.removeDeck(this.dataManager['getDeckId'](file.path)); debouncedRefresh(); } }));
-        this.registerEvent(this.app.vault.on('rename', async (file, oldPath) => { if (file instanceof TFile) { await this.dataManager.renameDeck(file, oldPath); debouncedRefresh(); } }));
+        this.registerEvent(this.app.vault.on('create', (file) => {
+            if (file instanceof TFile) {
+                void updateAndRefresh(file);
+            }
+        }));
+        this.registerEvent(this.app.vault.on('modify', (file) => {
+            if (file instanceof TFile) {
+                void updateAndRefresh(file);
+            }
+        }));
+        this.registerEvent(this.app.vault.on('delete', (file) => {
+            if (file instanceof TFile) {
+                this.dataManager.removeDeck(this.dataManager['getDeckId'](file.path));
+                debouncedRefresh();
+            }
+        }));
+        this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+            if (file instanceof TFile) {
+                void this.dataManager.renameDeck(file, oldPath).then(() => {
+                    debouncedRefresh();
+                });
+            }
+        }));
         
         // Refresh dashboard view to ensure sync button appears if enabled
         this.refreshDashboardView();
     }
-    async onunload() {
-        // Stop sync gracefully
-        await this.dataManager.stopSync();
-        this.app.workspace.detachLeavesOfType(VIEW_TYPE_DASHBOARD);
+    onunload() {
+        // Stop sync gracefully.
+        void this.dataManager.stopSync().catch((error: unknown) => {
+            console.error('Failed to stop sync during unload:', error);
+        });
+
         this.removeStyle();
     }
     addStyle() {
-        const css = `
-            .fsrs-review-modal-immersive.modal-container .modal-bg {
-                background-color: var(--background-primary);
-                opacity: 1;
-            }
-            .fsrs-review-modal-immersive.modal-container .modal {
-                max-width: 100vw;
-                width: 100vw;
-                height: 100vh;
-                max-height: 100vh;
-                border-radius: 0;
-            }
-            .fsrs-review-modal-immersive .modal-header-controls {
-                display: flex;
-                flex-direction: row-reverse;
-                align-items: center;
-                gap: var(--size-4-2);
-            }
-            .fsrs-review-card {
-                border: 1px solid var(--background-modifier-border);
-                border-radius: var(--radius-m);
-                box-shadow: var(--shadow-s);
-                background-color: var(--background-primary);
-                padding: var(--size-4-4);
-                margin: var(--size-4-4) auto;
-                max-width: 600px;
-            }
-            /* Modern Sleek Dashboard */
-            .fsrs-dashboard-header {
-                padding: var(--size-4-4);
-                border-bottom: 1px solid var(--background-modifier-border);
-            }
-            
-            .fsrs-header-top {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: var(--size-4-4);
-            }
-            
-            .fsrs-title-section {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-2);
-            }
-            
-            .fsrs-logo-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
-                border-radius: var(--radius-m);
-                color: white;
-            }
-            
-            .fsrs-logo-icon svg {
-                width: 18px;
-                height: 18px;
-            }
-            
-            .fsrs-title {
-                font-size: var(--font-ui-large);
-                font-weight: 700;
-                color: var(--text-normal);
-                margin: 0;
-                letter-spacing: -0.5px;
-            }
-            
-            /* Quick Actions - Always Visible */
-            .fsrs-quick-actions {
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--size-4-2);
-                margin-bottom: var(--size-4-4);
-            }
-            
-            .fsrs-action-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: var(--size-4-2);
-                padding: var(--size-4-2) var(--size-4-3);
-                border: none;
-                border-radius: var(--radius-m);
-                font-size: var(--font-ui-small);
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                flex: 1 1 auto;
-                min-width: 0;
-                white-space: nowrap;
-            }
-            
-            .fsrs-action-btn:hover {
-                transform: translateY(-1px);
-            }
-            
-            .fsrs-action-primary {
-                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
-                color: white;
-                flex: 2 1 140px;
-            }
-            
-            .fsrs-action-primary:hover {
-                background-color: var(--interactive-accent-hover);
-            }
-            
-            .fsrs-action-secondary {
-                background-color: var(--background-modifier-form-field);
-                color: var(--text-normal);
-                border: 1px solid var(--background-modifier-border);
-                flex: 1 1 100px;
-            }
-            
-            .fsrs-action-secondary:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            
-            .fsrs-action-icon-only {
-                flex: 0 0 40px;
-                padding: 0;
-                justify-content: center;
-                background-color: var(--background-modifier-form-field);
-                border: 1px solid var(--background-modifier-border);
-                color: var(--text-muted);
-            }
-            
-            .fsrs-action-icon-only:hover {
-                background-color: var(--background-modifier-hover);
-                color: var(--text-normal);
-            }
-            
-            .fsrs-action-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                flex-shrink: 0;
-            }
-            
-            .fsrs-action-icon svg {
-                width: 16px;
-                height: 16px;
-            }
-            
-            .fsrs-action-text {
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            
-            .fsrs-action-badge {
-                background-color: rgba(255, 255, 255, 0.2);
-                padding: 2px 8px;
-                border-radius: 12px;
-                font-size: var(--font-smallest);
-                font-weight: 700;
-                flex-shrink: 0;
-            }
-            
-            /* Stats Cards */
-            .fsrs-stats-cards {
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--size-4-3);
-            }
-            
-            .fsrs-stat-card {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-3);
-                padding: var(--size-4-3);
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-m);
-                border: 1px solid var(--background-modifier-border);
-                flex: 1 1 120px;
-                min-width: 0;
-                transition: background-color 0.2s ease;
-            }
-            
-            .fsrs-stat-card:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            
-            .fsrs-stat-card-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: var(--radius-s);
-                background-color: var(--background-primary);
-            }
-            
-            .fsrs-stat-card-icon svg {
-                width: 20px;
-                height: 20px;
-            }
-            
-            .fsrs-stat-neutral .fsrs-stat-card-icon {
-                color: var(--text-accent);
-            }
-            
-            .fsrs-stat-due .fsrs-stat-card-icon {
-                color: var(--color-red);
-            }
-            
-            .fsrs-stat-new .fsrs-stat-card-icon {
-                color: var(--color-blue);
-            }
-            
-            .fsrs-stat-card-content {
-                flex: 1;
-            }
-            
-            .fsrs-stat-card-value {
-                font-size: var(--font-ui-larger);
-                font-weight: 700;
-                color: var(--text-normal);
-                line-height: 1.2;
-            }
-            
-            .fsrs-stat-card-label {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-            }
-            
-            /* Folder Groups */
-            .fsrs-folder-group {
-                margin-bottom: var(--size-4-1);
-            }
-            
-            .fsrs-folder-header {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-2);
-                padding: var(--size-4-2) var(--size-4-3);
-                cursor: pointer;
-                border-radius: var(--radius-s);
-                transition: all 0.15s ease;
-            }
-            
-            .fsrs-folder-header:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            
-            .fsrs-folder-chevron {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 16px;
-                height: 16px;
-                transition: transform 0.2s ease;
-            }
-            
-            .fsrs-folder-header.is-expanded .fsrs-folder-chevron {
-                transform: rotate(90deg);
-            }
-            
-            .fsrs-folder-chevron svg {
-                width: 14px;
-                height: 14px;
-                color: var(--text-muted);
-            }
-            
-            .fsrs-folder-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            .fsrs-folder-icon svg {
-                width: 16px;
-                height: 16px;
-                color: var(--text-accent);
-            }
-            
-            .fsrs-folder-name {
-                flex: 1;
-                font-weight: 500;
-                color: var(--text-normal);
-                font-size: var(--font-ui-small);
-            }
-            
-            .fsrs-folder-count-container {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-1);
-            }
-            
-            .fsrs-folder-count {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                background-color: var(--background-primary);
-                padding: 2px 8px;
-                border-radius: 10px;
-                min-width: 20px;
-                text-align: center;
-            }
-            
-            .fsrs-folder-due-count {
-                background-color: rgba(var(--color-red-rgb), 0.15);
-                color: var(--color-red);
-                font-weight: 600;
-            }
-            
-            .fsrs-folder-decks {
-                padding-left: var(--size-4-4);
-                margin-top: var(--size-4-1);
-            }
-            
-            /* Modern Deck Cards */
-            .fsrs-deck-card {
-                background-color: var(--background-primary);
-                border: 1px solid var(--background-modifier-border);
-                border-radius: var(--radius-m);
-                margin-bottom: var(--size-4-2);
-                overflow: hidden;
-                transition: all 0.2s ease;
-            }
-            
-            .fsrs-deck-card:hover {
-                border-color: var(--background-modifier-border-hover);
-            }
-            
-            .fsrs-deck-card-header {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-3);
-                padding: var(--size-4-3);
-                cursor: pointer;
-                transition: background-color 0.15s ease;
-            }
-            
-            .fsrs-deck-card-header:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            
-            .fsrs-deck-card-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 36px;
-                height: 36px;
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-s);
-                flex-shrink: 0;
-            }
-            
-            .fsrs-deck-card-icon svg {
-                width: 18px;
-                height: 18px;
-                color: var(--text-muted);
-            }
-            
-            .fsrs-deck-card-icon.has-due {
-                background-color: rgba(var(--color-red-rgb), 0.1);
-            }
-            
-            .fsrs-deck-card-icon.has-due svg {
-                color: var(--color-red);
-            }
-            
-            .fsrs-deck-card-info {
-                flex: 1;
-                min-width: 0;
-            }
-            
-            .fsrs-deck-card-title {
-                font-weight: 600;
-                font-size: var(--font-ui-small);
-                color: var(--text-normal);
-                margin-bottom: var(--size-4-1);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            
-            .fsrs-deck-card-stats {
-                display: flex;
-                gap: var(--size-4-3);
-                font-size: var(--font-smaller);
-            }
-            
-            .fsrs-deck-card-stats span {
-                display: flex;
-                align-items: center;
-                gap: 4px;
-            }
-            
-            .fsrs-stat-due {
-                color: var(--text-muted);
-            }
-            
-            .fsrs-stat-due.has-due {
-                color: var(--color-red);
-                font-weight: 600;
-            }
-            
-            .fsrs-stat-new {
-                color: var(--color-blue);
-            }
-            
-            .fsrs-stat-total {
-                color: var(--text-muted);
-            }
-            
-            /* Deck Actions */
-            .fsrs-deck-card-actions {
-                padding: 0 var(--size-4-3) var(--size-4-3);
-                display: flex;
-                flex-direction: column;
-                gap: var(--size-4-2);
-            }
-            
-            .fsrs-deck-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: var(--size-4-2);
-                width: 100%;
-                padding: var(--size-4-2) var(--size-4-3);
-                border: none;
-                border-radius: var(--radius-s);
-                font-size: var(--font-ui-small);
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-            
-            .fsrs-deck-btn:hover {
-                transform: translateY(-1px);
-            }
-            
-            .fsrs-deck-btn svg {
-                width: 14px;
-                height: 14px;
-            }
-            
-            .fsrs-deck-btn-study {
-                background-color: var(--interactive-accent);
-                color: var(--text-on-accent);
-            }
-            
-            .fsrs-deck-btn-study:hover {
-                background-color: var(--interactive-accent-hover);
-            }
-            
-            /* Rating buttons - clean design without shortcuts */
-            .fsrs-rating-btn {
-                min-height: 60px;
-            }
-            
-            .fsrs-rating-text {
-                font-size: var(--font-ui-medium);
-                font-weight: 600;
-            }
-            
-            .fsrs-interval-hint {
-                font-size: var(--font-smaller);
-                opacity: 0.8;
-                font-weight: 500;
-            }
-            
-            .fsrs-show-answer-btn {
-                font-size: var(--font-ui-medium);
-                font-weight: 600;
-                min-height: 50px;
-            }
-            
-            .fsrs-deck-secondary-actions {
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--size-4-2);
-            }
-            
-            .fsrs-deck-secondary-actions .fsrs-deck-btn {
-                flex: 1 1 80px;
-                min-width: 0;
-            }
-            
-            .fsrs-deck-btn-cram,
-            .fsrs-deck-btn-browse {
-                background-color: var(--background-modifier-form-field);
-                color: var(--text-normal);
-                border: 1px solid var(--background-modifier-border);
-            }
-            
-            .fsrs-deck-btn-cram:hover,
-            .fsrs-deck-btn-browse:hover {
-                background-color: var(--background-modifier-hover);
-                border-color: var(--background-modifier-border-hover);
-            }
-            
-            .fsrs-btn-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            /* Loading spinner */
-            .is-spinning svg {
-                animation: fsrs-spin 1s linear infinite;
-            }
-            
-            @keyframes fsrs-spin {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-            }
-            
-            /* Empty State */
-            .fsrs-empty-state {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                padding: var(--size-4-12) var(--size-4-4);
-                text-align: center;
-            }
-            
-            .fsrs-empty-icon-container {
-                width: 80px;
-                height: 80px;
-                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: var(--size-4-4);
-            }
-            
-            .fsrs-empty-icon {
-                color: white;
-            }
-            
-            .fsrs-empty-icon svg {
-                width: 36px;
-                height: 36px;
-            }
-            
-            .fsrs-empty-title {
-                font-size: var(--font-ui-larger);
-                font-weight: 700;
-                color: var(--text-normal);
-                margin-bottom: var(--size-4-2);
-            }
-            
-            .fsrs-empty-desc {
-                font-size: var(--font-ui-small);
-                color: var(--text-muted);
-                max-width: 280px;
-                line-height: 1.6;
-                margin-bottom: var(--size-4-4);
-            }
-            
-            .fsrs-empty-tip {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-2);
-                padding: var(--size-4-2) var(--size-4-3);
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-m);
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-            }
-            
-            .fsrs-tip-icon {
-                color: var(--text-accent);
-            }
-            
-            .fsrs-tip-icon svg {
-                width: 14px;
-                height: 14px;
-            }
-            
-            /* Statistics Modal */
-            .fsrs-stats-modal .modal-content {
-                padding: 0;
-            }
-            
-            .fsrs-stats-header {
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--size-4-3);
-                padding: var(--size-4-4);
-                background-color: var(--background-secondary);
-                border-bottom: 1px solid var(--background-modifier-border);
-            }
-            
-            .fsrs-stat-header-card {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-                padding: var(--size-4-3);
-                background-color: var(--background-primary);
-                border-radius: var(--radius-m);
-                border: 1px solid var(--background-modifier-border);
-                flex: 1 1 120px;
-                min-width: 0;
-            }
-            
-            .fsrs-stat-header-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 40px;
-                height: 40px;
-                border-radius: 50%;
-                margin-bottom: var(--size-4-2);
-                background-color: var(--background-secondary);
-            }
-            
-            .fsrs-stat-header-icon svg {
-                width: 20px;
-                height: 20px;
-            }
-            
-            .fsrs-stat-success .fsrs-stat-header-icon {
-                color: var(--color-green);
-                background-color: rgba(var(--color-green-rgb), 0.1);
-            }
-            
-            .fsrs-stat-warning .fsrs-stat-header-icon {
-                color: var(--color-orange);
-                background-color: rgba(var(--color-orange-rgb), 0.1);
-            }
-            
-            .fsrs-stat-info .fsrs-stat-header-icon {
-                color: var(--color-blue);
-                background-color: rgba(var(--color-blue-rgb), 0.1);
-            }
-            
-            .fsrs-stat-neutral .fsrs-stat-header-icon {
-                color: var(--text-accent);
-                background-color: rgba(var(--interactive-accent-rgb), 0.1);
-            }
-            
-            .fsrs-stat-header-value {
-                font-size: var(--font-ui-larger);
-                font-weight: 700;
-                color: var(--text-normal);
-                line-height: 1.2;
-            }
-            
-            .fsrs-stat-header-label {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                margin-top: var(--size-4-1);
-            }
-            
-            .fsrs-stats-charts {
-                padding: var(--size-4-4);
-                display: flex;
-                flex-direction: column;
-                gap: var(--size-4-4);
-            }
-            
-            .fsrs-chart-card {
-                background-color: var(--background-primary);
-                border: 1px solid var(--background-modifier-border);
-                border-radius: var(--radius-m);
-                padding: var(--size-4-4);
-            }
-            
-            .fsrs-chart-header {
-                display: flex;
-                align-items: center;
-                gap: var(--size-4-2);
-                margin-bottom: var(--size-4-3);
-            }
-            
-            .fsrs-chart-header h3 {
-                font-size: var(--font-ui-small);
-                font-weight: 600;
-                color: var(--text-normal);
-                margin: 0;
-            }
-            
-            .fsrs-chart-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 32px;
-                height: 32px;
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-s);
-                color: var(--text-accent);
-            }
-            
-            .fsrs-chart-icon svg {
-                width: 16px;
-                height: 16px;
-            }
-            
-            .fsrs-chart-canvas {
-                height: 200px !important;
-            }
-            
-            /* Responsive Design - Mobile & Small Sidebar */
-            
-            /* Small sidebar mode (< 350px) */
-            @media (max-width: 350px) {
-                .fsrs-dashboard-header {
-                    padding: var(--size-4-2);
-                }
-                
-                .fsrs-header-top {
-                    flex-direction: column;
-                    gap: var(--size-4-2);
-                    align-items: flex-start;
-                }
-                
-                .fsrs-title {
-                    font-size: var(--font-ui-small);
-                }
-                
-                .fsrs-quick-actions {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: var(--size-4-1);
-                    width: 100%;
-                }
-                
-                .fsrs-action-btn {
-                    min-height: 36px;
-                    padding: var(--size-4-1) var(--size-4-2);
-                    font-size: var(--font-smallest);
-                }
-                
-                .fsrs-action-primary {
-                    flex: 1 1 100%;
-                }
-                
-                .fsrs-action-secondary {
-                    flex: 1 1 calc(50% - var(--size-4-1));
-                }
-                
-                .fsrs-action-icon-only {
-                    flex: 0 0 36px;
-                }
-                
-                /* Stats cards - full width on small screens */
-                .fsrs-stats-cards {
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-stats-cards .fsrs-stat-card {
-                    flex: 1 1 100%;
-                }
-                
-                .fsrs-stat-card {
-                    flex-direction: row;
-                    justify-content: flex-start;
-                    padding: var(--size-4-2);
-                }
-                
-                .fsrs-stat-card-icon {
-                    width: 28px;
-                    height: 28px;
-                }
-                
-                .fsrs-stat-card-content {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-stat-card-value {
-                    font-size: var(--font-ui-medium);
-                }
-                
-                .fsrs-stat-card-label {
-                    font-size: var(--font-smallest);
-                }
-            }
-            
-            /* Medium sidebar mode (350px - 500px) */
-            @media (min-width: 351px) and (max-width: 500px) {
-                .fsrs-dashboard-header {
-                    padding: var(--size-4-3);
-                }
-                
-                .fsrs-header-top {
-                    flex-direction: row;
-                    flex-wrap: wrap;
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-quick-actions {
-                    flex-wrap: wrap;
-                    gap: var(--size-4-2);
-                    width: 100%;
-                }
-                
-                .fsrs-action-btn {
-                    font-size: var(--font-smaller);
-                }
-                
-                .fsrs-action-primary {
-                    flex: 2 1 120px;
-                }
-                
-                .fsrs-action-secondary {
-                    flex: 1 1 80px;
-                }
-                
-                .fsrs-action-icon-only {
-                    flex: 0 0 36px;
-                }
-                
-                /* Stats cards - flexible 3 columns */
-                .fsrs-stats-cards {
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-stats-cards .fsrs-stat-card {
-                    flex: 1 1 calc(33.333% - var(--size-4-2));
-                }
-                
-                .fsrs-stat-card {
-                    flex-direction: column;
-                    align-items: center;
-                    text-align: center;
-                    padding: var(--size-4-2);
-                }
-                
-                .fsrs-stat-card-icon {
-                    width: 32px;
-                    height: 32px;
-                }
-                
-                .fsrs-stat-card-value {
-                    font-size: var(--font-ui-medium);
-                }
-                
-                .fsrs-stat-card-label {
-                    font-size: 10px;
-                }
-            }
-            
-            /* Regular mobile mode */
-            @media (max-width: 500px) {
-                .fsrs-folder-header {
-                    padding: var(--size-4-2);
-                }
-                
-                .fsrs-folder-decks {
-                    padding-left: var(--size-4-2);
-                }
-                
-                /* Deck cards - full width buttons */
-                .fsrs-deck-card {
-                    margin-bottom: var(--size-4-3);
-                }
-                
-                .fsrs-deck-card-header {
-                    padding: var(--size-4-2);
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-deck-card-icon {
-                    width: 32px;
-                    height: 32px;
-                }
-                
-                .fsrs-deck-card-title {
-                    font-size: var(--font-smaller);
-                }
-                
-                .fsrs-deck-card-stats {
-                    font-size: 11px;
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-deck-card-actions {
-                    padding: 0 var(--size-4-2) var(--size-4-2);
-                    gap: var(--size-4-2);
-                }
-                
-                .fsrs-deck-btn {
-                    padding: var(--size-4-2);
-                    font-size: var(--font-smaller);
-                }
-                
-                .fsrs-btn-text {
-                    display: none;
-                }
-                
-                .fsrs-deck-secondary-actions {
-                    gap: var(--size-4-2);
-                }
-            }
-            
-            /* Extra small screens */
-            @media (max-width: 350px) {
-                .fsrs-stats-cards {
-                    grid-template-columns: 1fr 1fr;
-                }
-                
-                .fsrs-quick-actions {
-                    flex-direction: column;
-                }
-                
-                .fsrs-action-btn {
-                    width: 100%;
-                    justify-content: center;
-                }
-                
-                .fsrs-action-text {
-                    display: inline;
-                }
-            }
-            
-            /* Touch-friendly improvements */
-            @media (pointer: coarse) {
-                .fsrs-folder-header,
-                .fsrs-deck-card-header,
-                .fsrs-deck-btn,
-                .fsrs-action-btn {
-                    min-height: 44px;
-                }
-                
-                .fsrs-deck-card-icon {
-                    width: 40px;
-                    height: 40px;
-                }
-            }
-            .fsrs-folder-header {
-                display: flex;
-                align-items: center;
-                padding: var(--size-4-2) var(--size-4-3);
-                background-color: var(--background-secondary);
-                border-radius: var(--radius-s);
-                cursor: pointer;
-                margin-bottom: var(--size-4-2);
-                transition: background-color 0.2s ease;
-            }
-            .fsrs-folder-header:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            .fsrs-folder-header svg {
-                width: 16px;
-                height: 16px;
-                margin-right: var(--size-4-2);
-                color: var(--text-accent);
-            }
-            .fsrs-folder-name {
-                font-weight: 600;
-                flex: 1;
-                color: var(--text-normal);
-            }
-            .fsrs-folder-count {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                margin-left: var(--size-4-2);
-                background-color: var(--background-primary);
-                padding: 2px 8px;
-                border-radius: var(--radius-s);
-            }
-            .fsrs-folder-decks {
-                padding-left: var(--size-4-3);
-            }
-            .fsrs-folder-decks .setting-item {
-                margin-left: var(--size-4-2);
-                border-left: 2px solid var(--background-modifier-border);
-                padding-left: var(--size-4-3);
-            }
-            .fsrs-folder-decks .setting-item:last-child {
-                margin-bottom: 0;
-            }
-            /* Native Obsidian-style deck items */
-            .fsrs-deck-item {
-                display: flex;
-                align-items: flex-start;
-                padding: var(--size-4-2) var(--size-4-3);
-                border-radius: var(--radius-s);
-                cursor: pointer;
-                margin-bottom: var(--size-4-1);
-                transition: background-color 0.15s ease;
-            }
-            .fsrs-deck-item:hover {
-                background-color: var(--background-modifier-hover);
-            }
-            .fsrs-deck-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-right: var(--size-4-2);
-                margin-top: 2px;
-                color: var(--text-muted);
-            }
-            .fsrs-deck-icon svg {
-                width: 16px;
-                height: 16px;
-                color: var(--text-accent);
-            }
-            .fsrs-deck-content {
-                flex: 1;
-                min-width: 0;
-            }
-            .fsrs-deck-title {
-                font-weight: 500;
-                color: var(--text-normal);
-                margin-bottom: var(--size-4-1);
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            .fsrs-deck-stats {
-                font-size: var(--font-smaller);
-                color: var(--text-muted);
-                display: flex;
-                gap: var(--size-4-2);
-            }
-            .fsrs-deck-actions {
-                display: flex;
-                flex-direction: column;
-                gap: var(--size-4-1);
-                margin-left: var(--size-4-2);
-            }
-            .fsrs-deck-actions button {
-                font-size: var(--font-smaller);
-                padding: var(--size-4-1) var(--size-4-2);
-                height: auto;
-                line-height: 1.2;
-            }
-
-            /* Image support in review cards */
-            .fsrs-review-card img {
-                max-width: 100%;
-                height: auto;
-                border-radius: var(--radius-s);
-                margin: var(--size-4-2) 0;
-            }
-            .fsrs-review-card .internal-embed img,
-            .fsrs-review-card .image-embed img {
-                max-width: 100%;
-                border-radius: var(--radius-s);
-            }
-            /* Card content styling */
-            .fsrs-card-front,
-            .fsrs-card-back {
-                line-height: 1.6;
-            }
-            .fsrs-card-front p,
-            .fsrs-card-back p {
-                margin: var(--size-4-2) 0;
-            }
-            .fsrs-card-front ul,
-            .fsrs-card-back ul,
-            .fsrs-card-front ol,
-            .fsrs-card-back ol {
-                margin: var(--size-4-2) 0;
-                padding-left: var(--size-4-4);
-            }
-            .fsrs-card-front code,
-            .fsrs-card-back code {
-                font-family: var(--font-monospace);
-                background-color: var(--background-modifier-form-field);
-                padding: 2px 6px;
-                border-radius: var(--radius-s);
-                font-size: 0.9em;
-            }
-            .fsrs-card-front pre,
-            .fsrs-card-back pre {
-                background-color: var(--background-secondary);
-                padding: var(--size-4-3);
-                border-radius: var(--radius-m);
-                overflow-x: auto;
-            }
-            .fsrs-card-front pre code,
-            .fsrs-card-back pre code {
-                background-color: transparent;
-                padding: 0;
-            }
-            /* Math support */
-            .fsrs-card-front .math,
-            .fsrs-card-back .math {
-                overflow-x: auto;
-            }
-            /* Review container */
-            .fsrs-review-container {
-                display: flex;
-                flex-direction: column;
-                height: 100%;
-                padding: var(--size-4-4);
-            }
-            .fsrs-bottom-controls {
-                flex: 0 0 auto;
-                padding-top: var(--size-4-4);
-                max-width: 600px;
-                margin: 0 auto;
-                width: 100%;
-            }
-            .fsrs-review-controls {
-                margin-top: var(--size-4-4);
-            }
-            /* Completion screen */
-            .fsrs-completion-screen {
-                text-align: center;
-                padding: var(--size-4-8);
-            }
-            .fsrs-completion-screen h2 {
-                color: var(--text-accent);
-                margin-bottom: var(--size-4-4);
-            }
-            .fsrs-completion-screen p {
-                color: var(--text-muted);
-                margin-bottom: var(--size-4-6);
-            }
-        `;
-        const styleEl = document.createElement('style');
-        styleEl.id = 'fsrs-flashcards-styles';
-        styleEl.textContent = css;
-        document.head.appendChild(styleEl);
+        // Styles are loaded from styles.css by Obsidian.
     }
     removeStyle() {
-        const styleEl = document.getElementById('fsrs-flashcards-styles');
-        if (styleEl) {
-            styleEl.remove();
-        }
     }
-    async loadSettings() { const data: PluginData | null = await this.loadData(); this.settings = Object.assign({}, DEFAULT_SETTINGS, data?.settings); this.settings.fsrsParams = Object.assign({}, DEFAULT_SETTINGS.fsrsParams, this.settings.fsrsParams); }
+    async loadSettings() {
+        const data = (await this.loadData()) as PluginData | null;
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, data?.settings);
+        this.settings.fsrsParams = Object.assign({}, DEFAULT_SETTINGS.fsrsParams, this.settings.fsrsParams);
+    }
     async saveSettings() { 
         // Save settings to data.json
-        const data: PluginData | null = await this.loadData();
+        const data = (await this.loadData()) as PluginData | null;
         await this.saveData({ 
             settings: this.settings, 
             cardData: data?.cardData || {},
             reviewHistory: data?.reviewHistory || []
         });
     }
-    async activateView() { const { workspace } = this.app; let leaf = workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0]; if (leaf) { workspace.revealLeaf(leaf); return; } leaf = workspace.getRightLeaf(false) || workspace.getLeaf(true); await leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, active: true }); workspace.revealLeaf(leaf); }
-    refreshDashboardView() { const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0]; if (leaf?.view instanceof DashboardView) { (leaf.view as DashboardView).render(); } }
+    async activateView() {
+        const { workspace } = this.app;
+        let leaf = workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0];
+
+        if (leaf) {
+            await workspace.revealLeaf(leaf);
+            return;
+        }
+
+        leaf = workspace.getRightLeaf(false) || workspace.getLeaf(true);
+        await leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, active: true });
+        await workspace.revealLeaf(leaf);
+    }
+    refreshDashboardView() { const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0]; if (leaf?.view instanceof DashboardView) { (leaf.view).render(); } }
 }

@@ -1,0 +1,1116 @@
+
+            .fsrs-review-modal-immersive.modal-container .modal-bg {
+                background-color: var(--background-primary);
+                opacity: 1;
+            }
+            .fsrs-review-modal-immersive.modal-container .modal {
+                max-width: 100vw;
+                width: 100vw;
+                height: 100vh;
+                max-height: 100vh;
+                border-radius: 0;
+            }
+            .fsrs-review-modal-immersive .modal-header-controls {
+                display: flex;
+                flex-direction: row-reverse;
+                align-items: center;
+                gap: var(--size-4-2);
+            }
+            .fsrs-review-card {
+                border: 1px solid var(--background-modifier-border);
+                border-radius: var(--radius-m);
+                box-shadow: var(--shadow-s);
+                background-color: var(--background-primary);
+                padding: var(--size-4-4);
+                margin: var(--size-4-4) auto;
+                max-width: 600px;
+            }
+            /* Modern Sleek Dashboard */
+            .fsrs-dashboard-header {
+                padding: var(--size-4-4);
+                border-bottom: 1px solid var(--background-modifier-border);
+            }
+            
+            .fsrs-header-top {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: var(--size-4-4);
+            }
+            
+            .fsrs-title-section {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-2);
+            }
+            
+            .fsrs-logo-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
+                border-radius: var(--radius-m);
+                color: white;
+            }
+            
+            .fsrs-logo-icon svg {
+                width: 18px;
+                height: 18px;
+            }
+            
+            .fsrs-title {
+                font-size: var(--font-ui-large);
+                font-weight: 700;
+                color: var(--text-normal);
+                margin: 0;
+                letter-spacing: -0.5px;
+            }
+            
+            /* Quick Actions - Always Visible */
+            .fsrs-quick-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--size-4-2);
+                margin-bottom: var(--size-4-4);
+            }
+            
+            .fsrs-action-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: var(--size-4-2);
+                padding: var(--size-4-2) var(--size-4-3);
+                border: none;
+                border-radius: var(--radius-m);
+                font-size: var(--font-ui-small);
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                flex: 1 1 auto;
+                min-width: 0;
+                white-space: nowrap;
+            }
+            
+            .fsrs-action-btn:hover {
+                transform: translateY(-1px);
+            }
+            
+            .fsrs-action-primary {
+                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
+                color: white;
+                flex: 2 1 140px;
+            }
+            
+            .fsrs-action-primary:hover {
+                background-color: var(--interactive-accent-hover);
+            }
+            
+            .fsrs-action-secondary {
+                background-color: var(--background-modifier-form-field);
+                color: var(--text-normal);
+                border: 1px solid var(--background-modifier-border);
+                flex: 1 1 100px;
+            }
+            
+            .fsrs-action-secondary:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            
+            .fsrs-action-icon-only {
+                flex: 0 0 40px;
+                padding: 0;
+                justify-content: center;
+                background-color: var(--background-modifier-form-field);
+                border: 1px solid var(--background-modifier-border);
+                color: var(--text-muted);
+            }
+            
+            .fsrs-action-icon-only:hover {
+                background-color: var(--background-modifier-hover);
+                color: var(--text-normal);
+            }
+            
+            .fsrs-action-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            
+            .fsrs-action-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .fsrs-action-text {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .fsrs-action-badge {
+                background-color: rgba(255, 255, 255, 0.2);
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: var(--font-smallest);
+                font-weight: 700;
+                flex-shrink: 0;
+            }
+            
+            /* Stats Cards */
+            .fsrs-stats-cards {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--size-4-3);
+            }
+            
+            .fsrs-stat-card {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-3);
+                padding: var(--size-4-3);
+                background-color: var(--background-secondary);
+                border-radius: var(--radius-m);
+                border: 1px solid var(--background-modifier-border);
+                flex: 1 1 120px;
+                min-width: 0;
+                transition: background-color 0.2s ease;
+            }
+            
+            .fsrs-stat-card:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            
+            .fsrs-stat-card-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: var(--radius-s);
+                background-color: var(--background-primary);
+            }
+            
+            .fsrs-stat-card-icon svg {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .fsrs-stat-neutral .fsrs-stat-card-icon {
+                color: var(--text-accent);
+            }
+            
+            .fsrs-stat-due .fsrs-stat-card-icon {
+                color: var(--color-red);
+            }
+            
+            .fsrs-stat-new .fsrs-stat-card-icon {
+                color: var(--color-blue);
+            }
+            
+            .fsrs-stat-card-content {
+                flex: 1;
+            }
+            
+            .fsrs-stat-card-value {
+                font-size: var(--font-ui-larger);
+                font-weight: 700;
+                color: var(--text-normal);
+                line-height: 1.2;
+            }
+            
+            .fsrs-stat-card-label {
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            
+            /* Folder Groups */
+            .fsrs-folder-group {
+                margin-bottom: var(--size-4-1);
+            }
+            
+            .fsrs-folder-header {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-2);
+                padding: var(--size-4-2) var(--size-4-3);
+                cursor: pointer;
+                border-radius: var(--radius-s);
+                transition: all 0.15s ease;
+            }
+            
+            .fsrs-folder-header:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            
+            .fsrs-folder-chevron {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                transition: transform 0.2s ease;
+            }
+            
+            .fsrs-folder-header.is-expanded .fsrs-folder-chevron {
+                transform: rotate(90deg);
+            }
+            
+            .fsrs-folder-chevron svg {
+                width: 14px;
+                height: 14px;
+                color: var(--text-muted);
+            }
+            
+            .fsrs-folder-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .fsrs-folder-icon svg {
+                width: 16px;
+                height: 16px;
+                color: var(--text-accent);
+            }
+            
+            .fsrs-folder-name {
+                flex: 1;
+                font-weight: 500;
+                color: var(--text-normal);
+                font-size: var(--font-ui-small);
+            }
+            
+            .fsrs-folder-count-container {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-1);
+            }
+            
+            .fsrs-folder-count {
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+                background-color: var(--background-primary);
+                padding: 2px 8px;
+                border-radius: 10px;
+                min-width: 20px;
+                text-align: center;
+            }
+            
+            .fsrs-folder-due-count {
+                background-color: rgba(var(--color-red-rgb), 0.15);
+                color: var(--color-red);
+                font-weight: 600;
+            }
+            
+            .fsrs-folder-decks {
+                padding-left: var(--size-4-4);
+                margin-top: var(--size-4-1);
+            }
+            
+            /* Modern Deck Cards */
+            .fsrs-deck-card {
+                background-color: var(--background-primary);
+                border: 1px solid var(--background-modifier-border);
+                border-radius: var(--radius-m);
+                margin-bottom: var(--size-4-2);
+                overflow: hidden;
+                transition: all 0.2s ease;
+            }
+            
+            .fsrs-deck-card:hover {
+                border-color: var(--background-modifier-border-hover);
+            }
+            
+            .fsrs-deck-card-header {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-3);
+                padding: var(--size-4-3);
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+            }
+            
+            .fsrs-deck-card-header:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            
+            .fsrs-deck-card-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                background-color: var(--background-secondary);
+                border-radius: var(--radius-s);
+                flex-shrink: 0;
+            }
+            
+            .fsrs-deck-card-icon svg {
+                width: 18px;
+                height: 18px;
+                color: var(--text-muted);
+            }
+            
+            .fsrs-deck-card-icon.has-due {
+                background-color: rgba(var(--color-red-rgb), 0.1);
+            }
+            
+            .fsrs-deck-card-icon.has-due svg {
+                color: var(--color-red);
+            }
+            
+            .fsrs-deck-card-info {
+                flex: 1;
+                min-width: 0;
+            }
+            
+            .fsrs-deck-card-title {
+                font-weight: 600;
+                font-size: var(--font-ui-small);
+                color: var(--text-normal);
+                margin-bottom: var(--size-4-1);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .fsrs-deck-card-stats {
+                display: flex;
+                gap: var(--size-4-3);
+                font-size: var(--font-smaller);
+            }
+            
+            .fsrs-deck-card-stats span {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            
+            .fsrs-stat-due {
+                color: var(--text-muted);
+            }
+            
+            .fsrs-stat-due.has-due {
+                color: var(--color-red);
+                font-weight: 600;
+            }
+            
+            .fsrs-stat-new {
+                color: var(--color-blue);
+            }
+            
+            .fsrs-stat-total {
+                color: var(--text-muted);
+            }
+            
+            /* Deck Actions */
+            .fsrs-deck-card-actions {
+                padding: 0 var(--size-4-3) var(--size-4-3);
+                display: flex;
+                flex-direction: column;
+                gap: var(--size-4-2);
+            }
+            
+            .fsrs-deck-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: var(--size-4-2);
+                width: 100%;
+                padding: var(--size-4-2) var(--size-4-3);
+                border: none;
+                border-radius: var(--radius-s);
+                font-size: var(--font-ui-small);
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .fsrs-deck-btn:hover {
+                transform: translateY(-1px);
+            }
+            
+            .fsrs-deck-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+            
+            .fsrs-deck-btn-study {
+                background-color: var(--interactive-accent);
+                color: var(--text-on-accent);
+            }
+            
+            .fsrs-deck-btn-study:hover {
+                background-color: var(--interactive-accent-hover);
+            }
+            
+            /* Rating buttons - clean design without shortcuts */
+            .fsrs-rating-btn {
+                min-height: 60px;
+            }
+            
+            .fsrs-rating-text {
+                font-size: var(--font-ui-medium);
+                font-weight: 600;
+            }
+            
+            .fsrs-interval-hint {
+                font-size: var(--font-smaller);
+                opacity: 0.8;
+                font-weight: 500;
+            }
+            
+            .fsrs-show-answer-btn {
+                font-size: var(--font-ui-medium);
+                font-weight: 600;
+                min-height: 50px;
+            }
+            
+            .fsrs-deck-secondary-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--size-4-2);
+            }
+            
+            .fsrs-deck-secondary-actions .fsrs-deck-btn {
+                flex: 1 1 80px;
+                min-width: 0;
+            }
+            
+            .fsrs-deck-btn-cram,
+            .fsrs-deck-btn-browse {
+                background-color: var(--background-modifier-form-field);
+                color: var(--text-normal);
+                border: 1px solid var(--background-modifier-border);
+            }
+            
+            .fsrs-deck-btn-cram:hover,
+            .fsrs-deck-btn-browse:hover {
+                background-color: var(--background-modifier-hover);
+                border-color: var(--background-modifier-border-hover);
+            }
+            
+            .fsrs-btn-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* Loading spinner */
+            .is-spinning svg {
+                animation: fsrs-spin 1s linear infinite;
+            }
+            
+            @keyframes fsrs-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            
+            /* Empty State */
+            .fsrs-empty-state {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: var(--size-4-12) var(--size-4-4);
+                text-align: center;
+            }
+            
+            .fsrs-empty-icon-container {
+                width: 80px;
+                height: 80px;
+                background: linear-gradient(135deg, var(--interactive-accent), var(--interactive-accent-hover));
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: var(--size-4-4);
+            }
+            
+            .fsrs-empty-icon {
+                color: white;
+            }
+            
+            .fsrs-empty-icon svg {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .fsrs-empty-title {
+                font-size: var(--font-ui-larger);
+                font-weight: 700;
+                color: var(--text-normal);
+                margin-bottom: var(--size-4-2);
+            }
+            
+            .fsrs-empty-desc {
+                font-size: var(--font-ui-small);
+                color: var(--text-muted);
+                max-width: 280px;
+                line-height: 1.6;
+                margin-bottom: var(--size-4-4);
+            }
+            
+            .fsrs-empty-tip {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-2);
+                padding: var(--size-4-2) var(--size-4-3);
+                background-color: var(--background-secondary);
+                border-radius: var(--radius-m);
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+            }
+            
+            .fsrs-tip-icon {
+                color: var(--text-accent);
+            }
+            
+            .fsrs-tip-icon svg {
+                width: 14px;
+                height: 14px;
+            }
+            
+            /* Statistics Modal */
+            .fsrs-stats-modal .modal-content {
+                padding: 0;
+            }
+            
+            .fsrs-stats-header {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--size-4-3);
+                padding: var(--size-4-4);
+                background-color: var(--background-secondary);
+                border-bottom: 1px solid var(--background-modifier-border);
+            }
+            
+            .fsrs-stat-header-card {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: var(--size-4-3);
+                background-color: var(--background-primary);
+                border-radius: var(--radius-m);
+                border: 1px solid var(--background-modifier-border);
+                flex: 1 1 120px;
+                min-width: 0;
+            }
+            
+            .fsrs-stat-header-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                margin-bottom: var(--size-4-2);
+                background-color: var(--background-secondary);
+            }
+            
+            .fsrs-stat-header-icon svg {
+                width: 20px;
+                height: 20px;
+            }
+            
+            .fsrs-stat-success .fsrs-stat-header-icon {
+                color: var(--color-green);
+                background-color: rgba(var(--color-green-rgb), 0.1);
+            }
+            
+            .fsrs-stat-warning .fsrs-stat-header-icon {
+                color: var(--color-orange);
+                background-color: rgba(var(--color-orange-rgb), 0.1);
+            }
+            
+            .fsrs-stat-info .fsrs-stat-header-icon {
+                color: var(--color-blue);
+                background-color: rgba(var(--color-blue-rgb), 0.1);
+            }
+            
+            .fsrs-stat-neutral .fsrs-stat-header-icon {
+                color: var(--text-accent);
+                background-color: rgba(var(--interactive-accent-rgb), 0.1);
+            }
+            
+            .fsrs-stat-header-value {
+                font-size: var(--font-ui-larger);
+                font-weight: 700;
+                color: var(--text-normal);
+                line-height: 1.2;
+            }
+            
+            .fsrs-stat-header-label {
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-top: var(--size-4-1);
+            }
+            
+            .fsrs-stats-charts {
+                padding: var(--size-4-4);
+                display: flex;
+                flex-direction: column;
+                gap: var(--size-4-4);
+            }
+            
+            .fsrs-chart-card {
+                background-color: var(--background-primary);
+                border: 1px solid var(--background-modifier-border);
+                border-radius: var(--radius-m);
+                padding: var(--size-4-4);
+            }
+            
+            .fsrs-chart-header {
+                display: flex;
+                align-items: center;
+                gap: var(--size-4-2);
+                margin-bottom: var(--size-4-3);
+            }
+            
+            .fsrs-chart-header h3 {
+                font-size: var(--font-ui-small);
+                font-weight: 600;
+                color: var(--text-normal);
+                margin: 0;
+            }
+            
+            .fsrs-chart-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 32px;
+                height: 32px;
+                background-color: var(--background-secondary);
+                border-radius: var(--radius-s);
+                color: var(--text-accent);
+            }
+            
+            .fsrs-chart-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+            
+            .fsrs-chart-canvas {
+                height: 200px !important;
+            }
+            
+            /* Responsive Design - Mobile & Small Sidebar */
+            
+            /* Small sidebar mode (< 350px) */
+            @media (max-width: 350px) {
+                .fsrs-dashboard-header {
+                    padding: var(--size-4-2);
+                }
+                
+                .fsrs-header-top {
+                    flex-direction: column;
+                    gap: var(--size-4-2);
+                    align-items: flex-start;
+                }
+                
+                .fsrs-title {
+                    font-size: var(--font-ui-small);
+                }
+                
+                .fsrs-quick-actions {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: var(--size-4-1);
+                    width: 100%;
+                }
+                
+                .fsrs-action-btn {
+                    min-height: 36px;
+                    padding: var(--size-4-1) var(--size-4-2);
+                    font-size: var(--font-smallest);
+                }
+                
+                .fsrs-action-primary {
+                    flex: 1 1 100%;
+                }
+                
+                .fsrs-action-secondary {
+                    flex: 1 1 calc(50% - var(--size-4-1));
+                }
+                
+                .fsrs-action-icon-only {
+                    flex: 0 0 36px;
+                }
+                
+                /* Stats cards - full width on small screens */
+                .fsrs-stats-cards {
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-stats-cards .fsrs-stat-card {
+                    flex: 1 1 100%;
+                }
+                
+                .fsrs-stat-card {
+                    flex-direction: row;
+                    justify-content: flex-start;
+                    padding: var(--size-4-2);
+                }
+                
+                .fsrs-stat-card-icon {
+                    width: 28px;
+                    height: 28px;
+                }
+                
+                .fsrs-stat-card-content {
+                    display: flex;
+                    align-items: center;
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-stat-card-value {
+                    font-size: var(--font-ui-medium);
+                }
+                
+                .fsrs-stat-card-label {
+                    font-size: var(--font-smallest);
+                }
+            }
+            
+            /* Medium sidebar mode (350px - 500px) */
+            @media (min-width: 351px) and (max-width: 500px) {
+                .fsrs-dashboard-header {
+                    padding: var(--size-4-3);
+                }
+                
+                .fsrs-header-top {
+                    flex-direction: row;
+                    flex-wrap: wrap;
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-quick-actions {
+                    flex-wrap: wrap;
+                    gap: var(--size-4-2);
+                    width: 100%;
+                }
+                
+                .fsrs-action-btn {
+                    font-size: var(--font-smaller);
+                }
+                
+                .fsrs-action-primary {
+                    flex: 2 1 120px;
+                }
+                
+                .fsrs-action-secondary {
+                    flex: 1 1 80px;
+                }
+                
+                .fsrs-action-icon-only {
+                    flex: 0 0 36px;
+                }
+                
+                /* Stats cards - flexible 3 columns */
+                .fsrs-stats-cards {
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-stats-cards .fsrs-stat-card {
+                    flex: 1 1 calc(33.333% - var(--size-4-2));
+                }
+                
+                .fsrs-stat-card {
+                    flex-direction: column;
+                    align-items: center;
+                    text-align: center;
+                    padding: var(--size-4-2);
+                }
+                
+                .fsrs-stat-card-icon {
+                    width: 32px;
+                    height: 32px;
+                }
+                
+                .fsrs-stat-card-value {
+                    font-size: var(--font-ui-medium);
+                }
+                
+                .fsrs-stat-card-label {
+                    font-size: 10px;
+                }
+            }
+            
+            /* Regular mobile mode */
+            @media (max-width: 500px) {
+                .fsrs-folder-header {
+                    padding: var(--size-4-2);
+                }
+                
+                .fsrs-folder-decks {
+                    padding-left: var(--size-4-2);
+                }
+                
+                /* Deck cards - full width buttons */
+                .fsrs-deck-card {
+                    margin-bottom: var(--size-4-3);
+                }
+                
+                .fsrs-deck-card-header {
+                    padding: var(--size-4-2);
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-deck-card-icon {
+                    width: 32px;
+                    height: 32px;
+                }
+                
+                .fsrs-deck-card-title {
+                    font-size: var(--font-smaller);
+                }
+                
+                .fsrs-deck-card-stats {
+                    font-size: 11px;
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-deck-card-actions {
+                    padding: 0 var(--size-4-2) var(--size-4-2);
+                    gap: var(--size-4-2);
+                }
+                
+                .fsrs-deck-btn {
+                    padding: var(--size-4-2);
+                    font-size: var(--font-smaller);
+                }
+                
+                .fsrs-btn-text {
+                    display: none;
+                }
+                
+                .fsrs-deck-secondary-actions {
+                    gap: var(--size-4-2);
+                }
+            }
+            
+            /* Extra small screens */
+            @media (max-width: 350px) {
+                .fsrs-stats-cards {
+                    grid-template-columns: 1fr 1fr;
+                }
+                
+                .fsrs-quick-actions {
+                    flex-direction: column;
+                }
+                
+                .fsrs-action-btn {
+                    width: 100%;
+                    justify-content: center;
+                }
+                
+                .fsrs-action-text {
+                    display: inline;
+                }
+            }
+            
+            /* Touch-friendly improvements */
+            @media (pointer: coarse) {
+                .fsrs-folder-header,
+                .fsrs-deck-card-header,
+                .fsrs-deck-btn,
+                .fsrs-action-btn {
+                    min-height: 44px;
+                }
+                
+                .fsrs-deck-card-icon {
+                    width: 40px;
+                    height: 40px;
+                }
+            }
+            .fsrs-folder-header {
+                display: flex;
+                align-items: center;
+                padding: var(--size-4-2) var(--size-4-3);
+                background-color: var(--background-secondary);
+                border-radius: var(--radius-s);
+                cursor: pointer;
+                margin-bottom: var(--size-4-2);
+                transition: background-color 0.2s ease;
+            }
+            .fsrs-folder-header:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            .fsrs-folder-header svg {
+                width: 16px;
+                height: 16px;
+                margin-right: var(--size-4-2);
+                color: var(--text-accent);
+            }
+            .fsrs-folder-name {
+                font-weight: 600;
+                flex: 1;
+                color: var(--text-normal);
+            }
+            .fsrs-folder-count {
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+                margin-left: var(--size-4-2);
+                background-color: var(--background-primary);
+                padding: 2px 8px;
+                border-radius: var(--radius-s);
+            }
+            .fsrs-folder-decks {
+                padding-left: var(--size-4-3);
+            }
+            .fsrs-folder-decks .setting-item {
+                margin-left: var(--size-4-2);
+                border-left: 2px solid var(--background-modifier-border);
+                padding-left: var(--size-4-3);
+            }
+            .fsrs-folder-decks .setting-item:last-child {
+                margin-bottom: 0;
+            }
+            /* Native Obsidian-style deck items */
+            .fsrs-deck-item {
+                display: flex;
+                align-items: flex-start;
+                padding: var(--size-4-2) var(--size-4-3);
+                border-radius: var(--radius-s);
+                cursor: pointer;
+                margin-bottom: var(--size-4-1);
+                transition: background-color 0.15s ease;
+            }
+            .fsrs-deck-item:hover {
+                background-color: var(--background-modifier-hover);
+            }
+            .fsrs-deck-icon {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: var(--size-4-2);
+                margin-top: 2px;
+                color: var(--text-muted);
+            }
+            .fsrs-deck-icon svg {
+                width: 16px;
+                height: 16px;
+                color: var(--text-accent);
+            }
+            .fsrs-deck-content {
+                flex: 1;
+                min-width: 0;
+            }
+            .fsrs-deck-title {
+                font-weight: 500;
+                color: var(--text-normal);
+                margin-bottom: var(--size-4-1);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .fsrs-deck-stats {
+                font-size: var(--font-smaller);
+                color: var(--text-muted);
+                display: flex;
+                gap: var(--size-4-2);
+            }
+            .fsrs-deck-actions {
+                display: flex;
+                flex-direction: column;
+                gap: var(--size-4-1);
+                margin-left: var(--size-4-2);
+            }
+            .fsrs-deck-actions button {
+                font-size: var(--font-smaller);
+                padding: var(--size-4-1) var(--size-4-2);
+                height: auto;
+                line-height: 1.2;
+            }
+
+            /* Image support in review cards */
+            .fsrs-review-card img {
+                max-width: 100%;
+                height: auto;
+                border-radius: var(--radius-s);
+                margin: var(--size-4-2) 0;
+            }
+            .fsrs-review-card .internal-embed img,
+            .fsrs-review-card .image-embed img {
+                max-width: 100%;
+                border-radius: var(--radius-s);
+            }
+            /* Card content styling */
+            .fsrs-card-front,
+            .fsrs-card-back {
+                line-height: 1.6;
+            }
+            .fsrs-card-front p,
+            .fsrs-card-back p {
+                margin: var(--size-4-2) 0;
+            }
+            .fsrs-card-front ul,
+            .fsrs-card-back ul,
+            .fsrs-card-front ol,
+            .fsrs-card-back ol {
+                margin: var(--size-4-2) 0;
+                padding-left: var(--size-4-4);
+            }
+            .fsrs-card-front code,
+            .fsrs-card-back code {
+                font-family: var(--font-monospace);
+                background-color: var(--background-modifier-form-field);
+                padding: 2px 6px;
+                border-radius: var(--radius-s);
+                font-size: 0.9em;
+            }
+            .fsrs-card-front pre,
+            .fsrs-card-back pre {
+                background-color: var(--background-secondary);
+                padding: var(--size-4-3);
+                border-radius: var(--radius-m);
+                overflow-x: auto;
+            }
+            .fsrs-card-front pre code,
+            .fsrs-card-back pre code {
+                background-color: transparent;
+                padding: 0;
+            }
+            /* Math support */
+            .fsrs-card-front .math,
+            .fsrs-card-back .math {
+                overflow-x: auto;
+            }
+            /* Review container */
+            .fsrs-review-container {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                padding: var(--size-4-4);
+            }
+            .fsrs-bottom-controls {
+                flex: 0 0 auto;
+                padding-top: var(--size-4-4);
+                max-width: 600px;
+                margin: 0 auto;
+                width: 100%;
+            }
+            .fsrs-review-controls {
+                margin-top: var(--size-4-4);
+            }
+            /* Completion screen */
+            .fsrs-completion-screen {
+                text-align: center;
+                padding: var(--size-4-8);
+            }
+            .fsrs-completion-screen h2 {
+                color: var(--text-accent);
+                margin-bottom: var(--size-4-4);
+            }
+            .fsrs-completion-screen p {
+                color: var(--text-muted);
+                margin-bottom: var(--size-4-6);
+            }
+        

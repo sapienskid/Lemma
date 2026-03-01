@@ -1,100 +1,90 @@
-# Lemma - FSRS Flashcards for Obsidian
+# Lemma
 
-Create and review flashcards directly in Obsidian using the Free Spaced Repetition Scheduler (FSRS) algorithm for optimal learning.
-
-> **Note**: Currently tested on Linux systems. May work on other platforms.
+Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS spaced-repetition algorithm.
 
 ## Features
 
-- **Spaced Repetition**: Uses FSRS algorithm for intelligent scheduling
-- **Multiple Card Types**: Basic cards and cloze deletion cards
-- **Dashboard View**: Overview of all decks with statistics
-- **Review Sessions**: Immersive review mode with keyboard shortcuts
-- **Custom Study**: Filter and study specific cards
-- **Statistics**: Charts for review activity and forecasts
-- **Markdown Support**: Full Obsidian markdown rendering in cards
-- **Chart.js Integration**: Visual statistics
+- FSRS scheduling for new, learning, and review cards
+- Basic and cloze card support
+- Dashboard with deck stats and due counts
+- Immersive review and browse modals
+- Custom study filters (tags, state, limits)
+- Optional PouchDB local storage for large collections
+- Optional CouchDB sync support
+- Review statistics with charts
+
+## Requirements
+
+- Obsidian `>= 0.15.0`
 
 ## Installation
 
-### Via Community Plugins (Recommended)
+### Community plugins
 
-1. Open Obsidian Settings → Community Plugins → Disable Safe Mode
-2. Search for "Lemma" and install
-3. Enable the plugin
+1. Open **Settings → Community plugins**.
+2. Search for **Lemma**.
+3. Install and enable the plugin.
 
-### Manual Installation
+### Manual installation
 
-1. Download from [GitHub](https://github.com/sapienskid/neuralcard)
-2. Extract to `.obsidian/plugins/lemma-flashcards/`
-3. Reload Obsidian and enable the plugin
+1. Download release assets from GitHub:
+- `main.js`
+- `manifest.json`
+- `styles.css`
+2. Create folder: `.obsidian/plugins/lemma-flashcards/`
+3. Copy the files into that folder.
+4. Reload Obsidian and enable **Lemma**.
 
-### Development
+## Quick start
 
-To develop the plugin:
+1. Add your deck tag (default `#flashcards`) to notes you want indexed.
+2. Add cards using one of the formats below.
+3. Run **Lemma: Open dashboard** from the command palette.
+4. Start reviewing due cards.
 
-1. Clone the repository
-2. Run `pnpm install`
-3. Run `pnpm run dev` for development build
-4. Set `OBSIDIAN_VAULT_PATH` environment variable to your vault path
-5. Run `pnpm run deploy` to build and copy to vault
-6. Reload Obsidian to test changes
+## Card formats
 
-### Requirements
+### Basic
 
-- Obsidian v0.15.0+
-
-## Usage
-
-1. Create a note and add the deck tag (default: `#flashcards`) to the frontmatter or as a tag.
-2. Add flashcards using the syntax below.
-3. Open the Lemma dashboard from the ribbon icon or command palette.
-4. Study your decks!
-
-## Card Syntax
-
-### Basic Cards
-
-```
+```markdown
 ---card--- ^unique-id
-Front content here
+Front content
 ---
-Back content here
+Back content
 ```
 
-### Cloze Deletion Cards
+### Cloze
 
-Use `==c1::hidden text==` for cloze deletions.
-
-Example:
-```
+```markdown
 This is a ==c1::cloze== deletion card.
 ```
 
-## Settings
-
-- **Deck Tag**: Tag to identify deck files
-- **Max New Cards per Day**: Limit for new cards
-- **Max Reviews per Day**: Limit for review cards
-- **Font Size**: Review card font size
-- **FSRS Parameters**: Advanced scheduling settings
-
 ## Commands
 
-- `Add a new flashcard`: Insert basic card template
-- `Open dashboard`: Open the dashboard view
+- `Add a new flashcard`
+- `Open dashboard`
+- `Sync now` (when sync is enabled)
+- `Check sync status` (when sync is enabled)
+- `Reset all card progress (nuclear option)`
 
-## Technical Details
+## Settings
 
-- Built with TypeScript for Obsidian
-- Uses ts-fsrs library for FSRS algorithm
-- Chart.js for statistics visualization
-- No external dependencies required
+- Deck tag
+- Daily limits for new/review cards
+- Review font size
+- FSRS parameters (advanced)
+- Storage mode (JSON or PouchDB)
+- Sync server and credentials
 
-## Contributing
+## Development
 
-Contributions welcome at [GitHub](https://github.com/sapienskid/neuralcard).
+```bash
+pnpm install
+pnpm run lint
+pnpm run build
+pnpm run dev
+```
 
 ## License
 
-MIT License - see LICENSE file.
+ISC License. See `LICENSE`.

@@ -1,7 +1,7 @@
 import { PouchDBManager } from './PouchDBManager';
 import { Card as FSRSCard, Rating } from 'ts-fsrs';
 
-interface LegacyPluginData {
+export interface LegacyPluginData {
     settings: {
         deckTag: string;
         newCardsPerDay: number;
@@ -32,15 +32,15 @@ export class DataMigration {
      * Migrate from legacy data.json format to PouchDB
      */
     async migrateFromLegacy(legacyData: LegacyPluginData, deckMapping: Record<string, { deckId: string; filePath: string }>): Promise<void> {
-        console.log('Starting migration from legacy data.json to PouchDB...');
+        console.debug('Starting migration from legacy data.json to PouchDB...');
         
         try {
             // 1. Migrate Settings
-            console.log('Migrating settings...');
+            console.debug('Migrating settings...');
             await this.pouchDB.saveSettings(legacyData.settings);
 
             // 2. Migrate Card States
-            console.log(`Migrating ${Object.keys(legacyData.cardData).length} card states...`);
+            console.debug(`Migrating ${Object.keys(legacyData.cardData).length} card states...`);
             let migratedCards = 0;
             let skippedCards = 0;
 
@@ -68,10 +68,10 @@ export class DataMigration {
                 }
             }
 
-            console.log(`Card states migrated: ${migratedCards}, skipped: ${skippedCards}`);
+            console.debug(`Card states migrated: ${migratedCards}, skipped: ${skippedCards}`);
 
             // 3. Migrate Review History
-            console.log(`Migrating ${legacyData.reviewHistory.length} review logs...`);
+            console.debug(`Migrating ${legacyData.reviewHistory.length} review logs...`);
             let migratedLogs = 0;
 
             for (const log of legacyData.reviewHistory) {
@@ -83,8 +83,8 @@ export class DataMigration {
                 }
             }
 
-            console.log(`Review logs migrated: ${migratedLogs}`);
-            console.log('Migration completed successfully!');
+            console.debug(`Review logs migrated: ${migratedLogs}`);
+            console.debug('Migration completed successfully!');
 
         } catch (error) {
             console.error('Migration failed:', error);
@@ -96,7 +96,7 @@ export class DataMigration {
      * Export current PouchDB data to legacy format (for backup)
      */
     async exportToLegacyFormat(): Promise<LegacyPluginData> {
-        console.log('Exporting PouchDB data to legacy format...');
+        console.debug('Exporting PouchDB data to legacy format...');
 
         const settings = await this.pouchDB.getSettings();
         const cardStates = await this.pouchDB.getAllCardStates();
@@ -126,7 +126,7 @@ export class DataMigration {
             migratedLogs: number;
         };
     }> {
-        console.log('Verifying migration...');
+        console.debug('Verifying migration...');
         const errors: string[] = [];
 
         // Check settings

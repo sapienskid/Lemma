@@ -62,39 +62,63 @@ export interface SyncMetaDoc {
     syncEnabled: boolean;
 }
 
-type DatabaseDoc = CardStateDoc | ReviewLogDoc | SettingsDoc | SyncMetaDoc;
+function getErrorStatus(error: unknown): number | undefined {
+    if (typeof error !== 'object' || error === null || !('status' in error)) {
+        return undefined;
+    }
+
+    const status = error.status;
+    return typeof status === 'number' ? status : undefined;
+}
+
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+        const message = error.message;
+        return typeof message === 'string' ? message : 'Unknown error';
+    }
+
+    return String(error);
+}
+
+function toError(error: unknown): Error {
+    return error instanceof Error ? error : new Error(getErrorMessage(error));
+}
 
 // --- PouchDB Manager Class ---
 
 export class PouchDBManager {
     private db: PouchDB.Database;
-    private syncHandler: PouchDB.Replication.Sync<{}> | null = null;
+    private syncHandler: PouchDB.Replication.Sync<object> | null = null;
     private remoteUrl: string | null = null;
     private syncing: boolean = false;
     private retryCount: number = 0;
     private maxRetries: number = 5;
     private syncEventHandlers: {
-        onChange?: (info: any) => void;
-        onPaused?: (err: any) => void;
+        onChange?: (info: unknown) => void;
+        onPaused?: (err: unknown) => void;
         onActive?: () => void;
-        onError?: (err: any) => void;
-        onComplete?: (info: any) => void;
+        onError?: (err: unknown) => void;
+        onComplete?: (info: unknown) => void;
     } = {};
 
     constructor(dbName: string = 'lemma_local') {
         this.db = new PouchDB(dbName);
-        console.log('PouchDB initialized:', dbName);
+        console.debug('PouchDB initialized:', dbName);
     }
     
     isSyncing(): boolean {
         return this.syncing;
     }
     
-    onSyncChange(handler: (info: any) => void) {
+    onSyncChange(handler: (info: unknown) => void) {
         this.syncEventHandlers.onChange = handler;
     }
     
-    onSyncError(handler: (err: any) => void) {
+    onSyncError(handler: (err: unknown) => void) {
         this.syncEventHandlers.onError = handler;
     }
     
@@ -102,11 +126,11 @@ export class PouchDBManager {
         this.syncEventHandlers.onActive = handler;
     }
     
-    onSyncPaused(handler: (err: any) => void) {
+    onSyncPaused(handler: (err: unknown) => void) {
         this.syncEventHandlers.onPaused = handler;
     }
     
-    onSyncComplete(handler: (info: any) => void) {
+    onSyncComplete(handler: (info: unknown) => void) {
         this.syncEventHandlers.onComplete = handler;
     }
 
@@ -133,8 +157,8 @@ export class PouchDBManager {
                     last_review: fsrsData.last_review?.toISOString(),
                     updated_at: new Date().toISOString()
                 };
-            } catch (err: any) {
-                if (err.status === 404) {
+            } catch (err: unknown) {
+                if (getErrorStatus(err) === 404) {
                     // Create new document
                     doc = {
                         _id: cardId,
@@ -183,8 +207,8 @@ export class PouchDBManager {
                 state: doc.state,
                 last_review: doc.last_review ? new Date(doc.last_review) : undefined
             };
-        } catch (err: any) {
-            if (err.status === 404) {
+        } catch (err: unknown) {
+            if (getErrorStatus(err) === 404) {
                 return null;
             }
             throw err;
@@ -201,7 +225,7 @@ export class PouchDBManager {
 
             const cardStates: Record<string, FSRSCard> = {};
 
-            for (const row of result.rows as Array<PouchDB.Core.AllDocsResponse<CardStateDoc>['rows'][0]>) {
+            for (const row of result.rows) {
                 if (row.doc && row.doc.type === 'card_state') {
                     cardStates[row.doc.cardId] = {
                         due: new Date(row.doc.due),
@@ -228,8 +252,8 @@ export class PouchDBManager {
         try {
             const doc = await this.db.get(cardId);
             await this.db.remove(doc);
-        } catch (err: any) {
-            if (err.status !== 404) {
+        } catch (err: unknown) {
+            if (getErrorStatus(err) !== 404) {
                 throw err;
             }
         }
@@ -266,12 +290,16 @@ export class PouchDBManager {
             });
 
             return result.rows
-                .filter((row: any) => row.doc && row.doc.type === 'review_log')
-                .map((row: any) => ({
-                    cardId: row.doc!.cardId,
-                    timestamp: row.doc!.timestamp,
-                    rating: row.doc!.rating
-                }));
+                .flatMap((row) => {
+                    if (!row.doc || row.doc.type !== 'review_log') {
+                        return [];
+                    }
+                    return [{
+                        cardId: row.doc.cardId,
+                        timestamp: row.doc.timestamp,
+                        rating: row.doc.rating
+                    }];
+                });
         } catch (error) {
             console.error('Error getting review history:', error);
             return [];
@@ -287,12 +315,16 @@ export class PouchDBManager {
             });
 
             return result.rows
-                .filter((row: any) => row.doc && row.doc.type === 'review_log' && row.doc.cardId === cardId)
-                .map((row: any) => ({
-                    timestamp: row.doc!.timestamp,
-                    rating: row.doc!.rating
-                }))
-                .sort((a: any, b: any) => b.timestamp - a.timestamp);
+                .flatMap((row) => {
+                    if (!row.doc || row.doc.type !== 'review_log' || row.doc.cardId !== cardId) {
+                        return [];
+                    }
+                    return [{
+                        timestamp: row.doc.timestamp,
+                        rating: row.doc.rating
+                    }];
+                })
+                .sort((a, b) => b.timestamp - a.timestamp);
         } catch (error) {
             console.error('Error getting review history for card:', error);
             return [];
@@ -312,8 +344,8 @@ export class PouchDBManager {
                     ...settings,
                     updated_at: new Date().toISOString()
                 };
-            } catch (err: any) {
-                if (err.status === 404) {
+            } catch (err: unknown) {
+                if (getErrorStatus(err) === 404) {
                     doc = {
                         _id: 'settings',
                         type: 'settings',
@@ -345,8 +377,8 @@ export class PouchDBManager {
                 fontSize: doc.fontSize,
                 fsrsParams: doc.fsrsParams
             };
-        } catch (err: any) {
-            if (err.status === 404) {
+        } catch (err: unknown) {
+            if (getErrorStatus(err) === 404) {
                 return null;
             }
             throw err;
@@ -370,8 +402,8 @@ export class PouchDBManager {
                     syncEnabled: true,
                     lastSyncTime: new Date().toISOString()
                 };
-            } catch (err: any) {
-                if (err.status === 404) {
+            } catch (err: unknown) {
+                if (getErrorStatus(err) === 404) {
                     syncMeta = {
                         _id: 'sync_meta',
                         type: 'sync_meta',
@@ -396,18 +428,19 @@ export class PouchDBManager {
                 live: true,
                 retry: true
             })
-            .on('change', (info: any) => {
-                console.log('Sync change:', info);
+            .on('change', (info: unknown) => {
+                console.debug('Sync change:', info);
                 this.retryCount = 0; // Reset retry count on successful change
                 if (this.syncEventHandlers.onChange) {
                     this.syncEventHandlers.onChange(info);
                 }
             })
-            .on('paused', (err: any) => {
-                console.log('Sync paused:', err);
+            .on('paused', (err: unknown) => {
+                console.debug('Sync paused:', err);
                 
                 // Check for fatal errors (404 Not Found, 401 Unauthorized, 403 Forbidden)
-                if (err && (err.status === 404 || err.status === 401 || err.status === 403)) {
+                const status = getErrorStatus(err);
+                if (status === 404 || status === 401 || status === 403) {
                     console.error('Sync fatal error, stopping:', err);
                     this.syncHandler?.cancel();
                     this.syncHandler = null;
@@ -445,7 +478,7 @@ export class PouchDBManager {
                 }
             })
             .on('active', () => {
-                console.log('Sync resumed');
+                console.debug('Sync resumed');
                 // We don't reset retryCount here immediately because 'active' happens during retry attempts too.
                 // Only reset on 'change' (successful data transfer) or maybe after a long period of being active?
                 // Actually, if it becomes active, it means it connected.
@@ -456,14 +489,14 @@ export class PouchDBManager {
                     this.syncEventHandlers.onActive();
                 }
             })
-            .on('error', (err: any) => {
+            .on('error', (err: unknown) => {
                 console.error('Sync error:', err);
                 if (this.syncEventHandlers.onError) {
                     this.syncEventHandlers.onError(err);
                 }
             })
-            .on('complete', (info: any) => {
-                console.log('Sync complete:', info);
+            .on('complete', (info: unknown) => {
+                console.debug('Sync complete:', info);
                 if (this.syncEventHandlers.onComplete) {
                     this.syncEventHandlers.onComplete(info);
                 }
@@ -489,38 +522,43 @@ export class PouchDBManager {
             const remoteDb = new PouchDB(this.remoteUrl);
             
             return new Promise((resolve, reject) => {
-                this.db.sync(remoteDb)
-                    .on('change', (info: any) => {
-                        console.log('Manual sync change:', info);
+                void this.db.sync(remoteDb)
+                    .on('change', (info: unknown) => {
+                        console.debug('Manual sync change:', info);
                         if (this.syncEventHandlers.onChange) {
                             this.syncEventHandlers.onChange(info);
                         }
                     })
-                    .on('complete', async (info: any) => {
-                        console.log('Manual sync complete:', info);
-                        this.syncing = false;
-                        
-                        // Update last sync time
-                        try {
-                            const syncMeta = await this.db.get<SyncMetaDoc>('sync_meta');
-                            syncMeta.lastSyncTime = new Date().toISOString();
-                            await this.db.put(syncMeta);
-                        } catch (err: any) {
-                            console.error('Failed to update sync time:', err);
-                        }
-                        
-                        if (this.syncEventHandlers.onComplete) {
-                            this.syncEventHandlers.onComplete(info);
-                        }
-                        resolve();
+                    .on('complete', (info: unknown) => {
+                        console.debug('Manual sync complete:', info);
+                        void (async () => {
+                            this.syncing = false;
+
+                            // Update last sync time
+                            try {
+                                const syncMeta = await this.db.get<SyncMetaDoc>('sync_meta');
+                                syncMeta.lastSyncTime = new Date().toISOString();
+                                await this.db.put(syncMeta);
+                            } catch (err: unknown) {
+                                console.error('Failed to update sync time:', err);
+                            }
+
+                            if (this.syncEventHandlers.onComplete) {
+                                this.syncEventHandlers.onComplete(info);
+                            }
+                            resolve();
+                        })().catch((err: unknown) => {
+                            this.syncing = false;
+                            reject(toError(err));
+                        });
                     })
-                    .on('error', (err: any) => {
+                    .on('error', (err: unknown) => {
                         console.error('Manual sync error:', err);
                         this.syncing = false;
                         if (this.syncEventHandlers.onError) {
                             this.syncEventHandlers.onError(err);
                         }
-                        reject(err);
+                        reject(toError(err));
                     });
             });
         } catch (error) {
@@ -539,8 +577,8 @@ export class PouchDBManager {
             const syncMeta = await this.db.get<SyncMetaDoc>('sync_meta');
             syncMeta.syncEnabled = false;
             await this.db.put(syncMeta);
-        } catch (err: any) {
-            if (err.status !== 404) {
+        } catch (err: unknown) {
+            if (getErrorStatus(err) !== 404) {
                 throw err;
             }
         }
@@ -554,8 +592,8 @@ export class PouchDBManager {
                 remoteUrl: syncMeta.remoteUrl,
                 lastSyncTime: syncMeta.lastSyncTime
             };
-        } catch (err: any) {
-            if (err.status === 404) {
+        } catch (err: unknown) {
+            if (getErrorStatus(err) === 404) {
                 return { enabled: false };
             }
             throw err;
@@ -575,7 +613,7 @@ export class PouchDBManager {
         await this.db.destroy();
     }
 
-    async getDatabaseInfo(): Promise<any> {
+    async getDatabaseInfo(): Promise<unknown> {
         return await this.db.info();
     }
 }
