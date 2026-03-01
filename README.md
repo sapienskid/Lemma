@@ -28,9 +28,9 @@ Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS 
 ### Manual installation
 
 1. Download release assets from GitHub:
-- `main.js`
-- `manifest.json`
-- `styles.css`
+   - `main.js`
+   - `manifest.json`
+   - `styles.css`
 2. Create folder: `.obsidian/plugins/lemma-flashcards/`
 3. Copy the files into that folder.
 4. Reload Obsidian and enable **Lemma**.
@@ -83,6 +83,14 @@ pnpm install
 pnpm run lint
 pnpm run build
 pnpm run dev
+```
+
+Deploy to a local vault (copies `main.js`, `manifest.json`, and `styles.css` if present):
+
+```bash
+pnpm run deploy
+# or
+OBSIDIAN_VAULT="/path/to/vault" pnpm run deploy
 ```
 
 ## License
