@@ -598,7 +598,6 @@ class DashboardView extends ItemView {
     async onOpen() { this.render(); }
     render() { 
         this.contentEl.empty(); 
-        this.contentEl.setCssProps({ 'padding': "var(--size-4-4)" }); 
         
         if (!this.plugin.dataManager.isDataLoaded()) {
             this.renderLoading();
@@ -632,19 +631,21 @@ class DashboardView extends ItemView {
         setIcon(logoIcon, 'brain-circuit');
         titleSection.createEl('h2', { text: 'Lemma', cls: 'fsrs-title' });
         
-        // Quick actions row - full width buttons
+        // Quick actions row
         const actionsRow = headerEl.createDiv({ cls: 'fsrs-quick-actions' });
         
+        // Helper: create a native dashboard button with icon + text
+        const createDashBtn = (icon: string, text: string, onClick: () => void, isPrimary = false) => {
+            const btn = new ButtonComponent(actionsRow)
+                .setIcon(icon)
+                .onClick(onClick);
+            btn.buttonEl.createSpan({ text });
+            if (isPrimary) btn.setCta();
+            return btn;
+        };
+        
         // Study All button (primary)
-        const studyAllBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-primary' });
-        const studyAllIcon = studyAllBtn.createDiv({ cls: 'fsrs-action-icon' });
-        setIcon(studyAllIcon, 'play');
-        studyAllBtn.createSpan({ text: 'Study all due', cls: 'fsrs-action-text' });
-        const dueCount = this.plugin.dataManager.getDecks().reduce((acc, d) => acc + d.stats.due, 0);
-        if (dueCount > 0) {
-            studyAllBtn.createEl('span', { text: dueCount.toString(), cls: 'fsrs-action-badge' });
-        }
-        studyAllBtn.addEventListener('click', () => {
+        const studyAllBtn = createDashBtn('play', 'Study all due', () => {
             const allDueCards = this.plugin.dataManager.getDecks()
                 .flatMap(d => this.plugin.dataManager.getReviewQueue(d.id))
                 .filter((c, i, arr) => arr.indexOf(c) === i);
@@ -653,27 +654,29 @@ class DashboardView extends ItemView {
                 return;
             }
             new ReviewModal(this.app, this.plugin, allDueCards).open();
-        });
+        }, true);
+        const dueCount = this.plugin.dataManager.getDecks().reduce((acc, d) => acc + d.stats.due, 0);
+        if (dueCount > 0) {
+            studyAllBtn.buttonEl.createEl('span', { text: dueCount.toString(), cls: 'fsrs-action-badge' });
+        }
         
         // Stats button
-        const statsBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-secondary' });
-        const statsIcon = statsBtn.createDiv({ cls: 'fsrs-action-icon' });
-        setIcon(statsIcon, 'bar-chart-2');
-        statsBtn.createSpan({ text: 'Statistics', cls: 'fsrs-action-text' });
-        statsBtn.addEventListener('click', () => new StatsModal(this.app, this.plugin).open());
+        createDashBtn('bar-chart-2', 'Statistics', () => new StatsModal(this.app, this.plugin).open());
         
         // Custom study button
-        const customBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-secondary' });
-        const customIcon = customBtn.createDiv({ cls: 'fsrs-action-icon' });
-        setIcon(customIcon, 'filter');
-        customBtn.createSpan({ text: 'Custom Study', cls: 'fsrs-action-text' });
-        customBtn.addEventListener('click', () => new CustomStudyModal(this.app, this.plugin).open());
+        createDashBtn('filter', 'Custom study', () => new CustomStudyModal(this.app, this.plugin).open());
         
+        // Icon buttons row (same flex group as action buttons)
+        const iconRow = actionsRow.createDiv({ cls: 'fsrs-icon-row' });
+        
+        // Help button
+        const helpBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Help & guide' } });
+        setIcon(helpBtn, 'help-circle');
+        helpBtn.addEventListener('click', () => new HelpModal(this.app, this.plugin).open());
+
         // Refresh button
-        const refreshBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-icon-only' });
-        const refreshIcon = refreshBtn.createDiv({ cls: 'fsrs-action-icon' });
-        setIcon(refreshIcon, 'refresh-cw');
-        refreshBtn.setAttribute('aria-label', 'Refresh');
+        const refreshBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Refresh' } });
+        setIcon(refreshBtn, 'refresh-cw');
         refreshBtn.addEventListener('click', () => {
             void (async () => {
                 refreshBtn.addClass('is-spinning');
@@ -686,10 +689,8 @@ class DashboardView extends ItemView {
         // Sync button if enabled
         const pouchDB = this.plugin.dataManager.getPouchDB();
         if (this.plugin.settings.syncEnabled && pouchDB) {
-            const syncBtn = actionsRow.createEl('button', { cls: 'fsrs-action-btn fsrs-action-icon-only' });
-            const syncIcon = syncBtn.createDiv({ cls: 'fsrs-action-icon' });
-            setIcon(syncIcon, 'cloud');
-            syncBtn.setAttribute('aria-label', 'Sync');
+            const syncBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Sync' } });
+            setIcon(syncBtn, 'cloud');
             syncBtn.addEventListener('click', () => {
                 void (async () => {
                     if (pouchDB.isSyncing()) {
@@ -697,7 +698,6 @@ class DashboardView extends ItemView {
                         return;
                     }
                     syncBtn.addClass('is-busy');
-                    syncBtn.disabled = true;
                     try {
                         const syncTimeout = new Promise<never>((_, reject) => {
                             window.setTimeout(() => reject(new Error('Sync request timed out')), 15000);
@@ -708,13 +708,13 @@ class DashboardView extends ItemView {
                         new Notice(`Sync failed: ${getErrorMessage(error)}`, 5000);
                     } finally {
                         syncBtn.removeClass('is-busy');
-                        syncBtn.disabled = false;
+                        syncBtn.removeAttribute('disabled');
                     }
                 })();
             });
         }
         
-        // Stats cards row
+        // Stats pills
         const decks = this.plugin.dataManager.getDecks();
         const globalStats = decks.reduce((acc, deck) => { 
             acc.new += deck.stats.new; 
@@ -723,20 +723,19 @@ class DashboardView extends ItemView {
             return acc; 
         }, { new: 0, due: 0, total: 0 });
         
-        const statsCards = headerEl.createDiv({ cls: 'fsrs-stats-cards' });
+        const statsEl = headerEl.createDiv({ cls: 'fsrs-stats-cards' });
         
-        const createStatCard = (icon: string, value: string, label: string, variant: string) => {
-            const card = statsCards.createDiv({ cls: `fsrs-stat-card fsrs-stat-${variant}` });
-            const iconEl = card.createDiv({ cls: 'fsrs-stat-card-icon' });
+        const createStatPill = (icon: string, value: string, label: string, variant: string) => {
+            const pill = statsEl.createDiv({ cls: `fsrs-stat-pill fsrs-stat-pill-${variant}` });
+            const iconEl = pill.createDiv();
             setIcon(iconEl, icon);
-            const content = card.createDiv({ cls: 'fsrs-stat-card-content' });
-            content.createEl('div', { text: value, cls: 'fsrs-stat-card-value' });
-            content.createEl('div', { text: label, cls: 'fsrs-stat-card-label' });
+            pill.createEl('span', { text: value, cls: 'fsrs-stat-pill-value' });
+            pill.createEl('span', { text: label });
         };
         
-        createStatCard('layers', globalStats.total.toString(), 'Total cards', 'neutral');
-        createStatCard('clock', globalStats.due.toString(), 'Due today', 'due');
-        createStatCard('sparkles', globalStats.new.toString(), 'New cards', 'new');
+        createStatPill('layers', globalStats.total.toString(), 'total', 'neutral');
+        createStatPill('clock', globalStats.due.toString(), 'due', 'due');
+        createStatPill('sparkles', globalStats.new.toString(), 'new', 'new');
     }
     private renderDecks() {
         const decks = this.plugin.dataManager.getDecks();
@@ -809,7 +808,7 @@ class DashboardView extends ItemView {
         
         // Container for decks (collapsible)
         const decksContainer = folderContainer.createDiv({ cls: 'fsrs-folder-decks' });
-        decksContainer.setCssProps({ 'display': 'none' });
+        decksContainer.hide();
         
         // Toggle collapse/expand (default to collapsed)
         let isCollapsed = true;
@@ -820,7 +819,7 @@ class DashboardView extends ItemView {
             folderHeader.toggleClass('is-collapsed', isCollapsed);
             folderHeader.toggleClass('is-expanded', !isCollapsed);
             folderHeader.setAttribute('aria-expanded', (!isCollapsed).toString());
-            decksContainer.setCssProps({ 'display': isCollapsed ? 'none' : 'block' });
+            if (isCollapsed) { decksContainer.hide(); } else { decksContainer.show(); }
             setIcon(chevronIcon, isCollapsed ? 'chevron-right' : 'chevron-down');
             setIcon(folderIcon, isCollapsed ? 'folder-closed' : 'folder-open');
         };
@@ -840,49 +839,47 @@ class DashboardView extends ItemView {
     }
     
     private renderDeckItem(container: HTMLElement, deck: Deck) {
-        const total = deck.cardIds.size;
         const hasDue = deck.stats.due > 0;
         
-        // Modern deck card
-        const deckCard = container.createDiv({ cls: 'fsrs-deck-card' });
+        // Flat deck row (nav-item style)
+        const deckRow = container.createDiv({ cls: 'fsrs-deck-row' });
         
-        // Card header with icon and title
-        const cardHeader = deckCard.createDiv({ cls: 'fsrs-deck-card-header' });
+        // Click to open deck note
+        deckRow.addEventListener('click', () => {
+            void this.app.workspace.openLinkText(deck.filePath, deck.filePath);
+        });
         
         // File icon
-        const iconEl = cardHeader.createDiv({ cls: 'fsrs-deck-card-icon' });
+        const iconEl = deckRow.createDiv({ cls: 'fsrs-deck-row-icon' });
         setIcon(iconEl, hasDue ? 'file-clock' : 'file-text');
         if (hasDue) {
             iconEl.addClass('has-due');
         }
         
-        // Title and info
-        const infoEl = cardHeader.createDiv({ cls: 'fsrs-deck-card-info' });
-        infoEl.createEl('div', { text: deck.title, cls: 'fsrs-deck-card-title' });
+        // Title
+        deckRow.createEl('span', { text: deck.title, cls: 'fsrs-deck-row-title' });
         
-        const statsEl = infoEl.createDiv({ cls: 'fsrs-deck-card-stats' });
-        statsEl.createEl('span', { 
-            text: `${deck.stats.due} due`, 
-            cls: `fsrs-stat-due ${deck.stats.due > 0 ? 'has-due' : ''}` 
-        });
-        statsEl.createEl('span', { text: `${deck.stats.new} new`, cls: 'fsrs-stat-new' });
-        statsEl.createEl('span', { text: `${total} total`, cls: 'fsrs-stat-total' });
+        // Stats
+        const statsEl = deckRow.createDiv({ cls: 'fsrs-deck-row-stats' });
+        if (deck.stats.due > 0) {
+            statsEl.createEl('span', { 
+                text: `${deck.stats.due}`, 
+                cls: 'fsrs-stat-due has-due' 
+            });
+        }
+        if (deck.stats.new > 0) {
+            statsEl.createEl('span', { text: `${deck.stats.new}`, cls: 'fsrs-stat-new' });
+        }
         
-        // Click to open deck note
-        cardHeader.addEventListener('click', () => {
-            void this.app.workspace.openLinkText(deck.filePath, deck.filePath);
-        });
+        // Action buttons (inline, revealed on hover)
+        const actionsEl = deckRow.createDiv({ cls: 'fsrs-deck-row-actions' });
         
-        // Actions - full width buttons
-        const actionsEl = deckCard.createDiv({ cls: 'fsrs-deck-card-actions' });
-        
-        // Study button (full width)
+        // Study button
         const studyBtn = actionsEl.createEl('button', { 
-            cls: `fsrs-deck-btn fsrs-deck-btn-study ${hasDue ? 'has-due' : 'no-due'}` 
+            cls: `clickable-icon${hasDue ? '' : ' fsrs-deck-muted'}`,
+            attr: { 'aria-label': hasDue ? `Study ${deck.stats.due} cards` : 'No cards due' }
         });
-        const studyIcon = studyBtn.createDiv({ cls: 'fsrs-btn-icon' });
-        setIcon(studyIcon, 'play');
-        studyBtn.createSpan({ text: hasDue ? `Study ${deck.stats.due}` : 'Study', cls: 'fsrs-btn-text' });
+        setIcon(studyBtn, 'play');
         studyBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const queue = this.plugin.dataManager.getReviewQueue(deck.id);
@@ -893,30 +890,28 @@ class DashboardView extends ItemView {
             new ReviewModal(this.app, this.plugin, queue, deck.title).open();
         });
         
-        // Secondary actions row
-        const secondaryActions = actionsEl.createDiv({ cls: 'fsrs-deck-secondary-actions' });
-        
         // Cram button
-        const cramBtn = secondaryActions.createEl('button', { cls: 'fsrs-deck-btn fsrs-deck-btn-cram' });
-        const cramIcon = cramBtn.createDiv({ cls: 'fsrs-btn-icon' });
-        setIcon(cramIcon, 'zap');
-        cramBtn.createSpan({ text: 'Cram', cls: 'fsrs-btn-text' });
+        const cramBtn = actionsEl.createEl('button', { 
+            cls: 'clickable-icon',
+            attr: { 'aria-label': 'Cram all cards' }
+        });
+        setIcon(cramBtn, 'zap');
         cramBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const queue = this.plugin.dataManager.getAllCardsForStudy(deck.id);
-            if (queue.length === 0) {
+            const cards = this.plugin.dataManager.getAllCardsForStudy(deck.id);
+            if (cards.length === 0) {
                 new Notice('No cards in this deck!');
                 return;
             }
-            new Notice(`Cram Mode: Studying all ${queue.length} cards`);
-            new ReviewModal(this.app, this.plugin, queue, deck.title).open();
+            new ReviewModal(this.app, this.plugin, cards, deck.title).open();
         });
         
         // Browse button
-        const browseBtn = secondaryActions.createEl('button', { cls: 'fsrs-deck-btn fsrs-deck-btn-browse' });
-        const browseIcon = browseBtn.createDiv({ cls: 'fsrs-btn-icon' });
-        setIcon(browseIcon, 'list');
-        browseBtn.createSpan({ text: 'Browse', cls: 'fsrs-btn-text' });
+        const browseBtn = actionsEl.createEl('button', { 
+            cls: 'clickable-icon',
+            attr: { 'aria-label': 'Browse cards' }
+        });
+        setIcon(browseBtn, 'list');
         browseBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const cards = this.plugin.dataManager.getCardsByDeck(deck.id);
@@ -978,7 +973,6 @@ class BrowseModal extends Modal {
         this.renderComponent = new Component();
         this.containerEl.addClass('fsrs-review-modal-immersive');
         this.contentEl.empty();
-        this.contentEl.setCssProps({ 'overflow': 'hidden' });
         this.titleEl.setText(`Browsing: ${this.deckName}`);
         this.setupUI();
         void this.displayCurrentCard();
@@ -986,10 +980,7 @@ class BrowseModal extends Modal {
     }
 private setupUI() {
         const container = this.contentEl.createDiv({ cls: 'fsrs-review-container' });
-        container.setCssProps({ 'display': 'flex' });
-        container.setCssProps({ 'align-items': 'center' });
-        container.setCssProps({ 'gap': 'var(--size-4-4)' });
-        container.setCssProps({ 'height': '100%' });
+        container.addClass('fsrs-browse-container');
 
         const leftControl = container.createDiv();
         this.prevButton = new ButtonComponent(leftControl)
@@ -998,12 +989,10 @@ private setupUI() {
             .onClick(() => this.showPrevCard());
 
         const cardWrapper = container.createDiv();
-        cardWrapper.setCssProps({ 'flex': '1' });
-        cardWrapper.setCssProps({ 'overflow-y': 'auto' });
-        cardWrapper.setCssProps({ 'max-height': '100%' });
+        cardWrapper.addClass('fsrs-browse-card-wrapper');
 
         this.cardContainer = cardWrapper.createDiv({ cls: 'fsrs-review-card' });
-        this.cardContainer.setCssProps({ 'font-size': `${this.plugin.settings.fontSize}px` });
+        this.cardContainer.style.setProperty('font-size', `${this.plugin.settings.fontSize}px`);
         this.frontEl = this.cardContainer.createDiv({ cls: 'fsrs-card-front' });
         this.answerContainer = this.cardContainer.createDiv({ cls: 'fsrs-card-answer' });
         this.answerContainer.createEl('hr');
@@ -1072,7 +1061,6 @@ class ReviewModal extends Modal {
         this.renderComponent = new Component();
         this.containerEl.addClass('fsrs-review-modal-immersive');
         this.contentEl.empty();
-        this.contentEl.setCssProps({ 'overflow': 'hidden' });
         const deckPrefix = this.deckName ? `${this.deckName} • ` : '';
         this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
         this.setupUI();
@@ -1092,12 +1080,12 @@ class ReviewModal extends Modal {
             const info = `Stability: ${data.stability.toFixed(2)}\nDifficulty: ${data.difficulty.toFixed(2)}\nReps: ${data.reps}\nLapses: ${data.lapses}\nDue: ${data.due.toLocaleDateString()}`;
             new Notice(info, 10000);
         });
-        this.modalEl.find('.modal-title').setCssProps({ 'cursor': 'help' });
+        this.modalEl.find('.modal-title').addClass('fsrs-card-info-title');
 
         const headerControls = this.modalEl.querySelector('.modal-header-controls');
         if (headerControls) {
-            const editBtn = headerControls.createDiv({ cls: 'modal-close-button' });
-            setIcon(editBtn, 'edit');
+            const editBtn = headerControls.createDiv({ cls: 'clickable-icon' });
+            setIcon(editBtn, 'pencil');
             editBtn.setAttribute('aria-label', 'Edit this card');
             editBtn.addEventListener('click', () => {
                 void this.app.workspace.openLinkText(card.filePath, card.filePath);
@@ -1107,109 +1095,79 @@ class ReviewModal extends Modal {
         }
 
         const container = this.contentEl.createDiv({ cls: 'fsrs-review-container' });
-        container.setCssProps({ 'display': 'flex' });
-        container.setCssProps({ 'flex-direction': 'column' });
-        container.setCssProps({ 'height': '100%' });
 
         this.cardContainer = container.createDiv({ cls: 'fsrs-review-card' });
-        this.cardContainer.setCssProps({ 'flex': '1 1 auto' });
-        this.cardContainer.setCssProps({ 'overflow-y': 'auto' });
-        this.cardContainer.setCssProps({ 'font-size': `${this.plugin.settings.fontSize}px` });
+        this.cardContainer.style.setProperty('font-size', `${this.plugin.settings.fontSize}px`);
 
         this.frontEl = this.cardContainer.createDiv({ cls: 'fsrs-card-front' });
         this.answerContainer = this.cardContainer.createDiv({ cls: 'fsrs-card-answer' });
-        this.answerContainer.setCssProps({ 'display': 'none' });
+        this.answerContainer.hide();
         this.answerContainer.createEl('hr');
         this.backEl = this.answerContainer.createDiv({ cls: 'fsrs-card-back' });
 
         const bottomControlsContainer = container.createDiv({ cls: 'fsrs-bottom-controls' });
-        bottomControlsContainer.setCssProps({ 'flex': '0 0 auto' });
-        bottomControlsContainer.setCssProps({ 'padding-top': 'var(--size-4-4)' });
 
         this.showAnswerButton = new ButtonComponent(bottomControlsContainer)
             .setButtonText('Show answer')
             .setCta()
             .onClick(() => this.showAnswer());
         this.showAnswerButton.buttonEl.addClass('fsrs-show-answer-btn');
-        this.showAnswerButton.buttonEl.setCssProps({ 'width': '100%' });
-        this.showAnswerButton.buttonEl.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
-        this.showAnswerButton.buttonEl.setCssProps({ 'padding': 'var(--size-4-2) var(--size-4-4)' });
 
         this.controlsContainer = bottomControlsContainer.createDiv({ cls: 'fsrs-review-controls' });
-        this.controlsContainer.setCssProps({ 'margin-top': 'var(--size-4-4)' });
-        this.controlsContainer.setCssProps({ 'display': 'none' });
+        this.controlsContainer.hide();
     }
     private createControlButtons() {
         this.controlsContainer.empty();
-        this.controlsContainer.setCssProps({ 'display': 'grid' });
-        this.controlsContainer.setCssProps({ 'grid-template-columns': 'repeat(4, 1fr)' });
-        this.controlsContainer.setCssProps({ 'gap': 'var(--size-4-2)' });
+        this.controlsContainer.show();
         const card = this.getCurrentCard();
         const intervals = this.plugin.dataManager.getNextReviewIntervals(card);
         
-        const createButton = (text: string, rating: Rating, interval: string, modifierClass?: string) => {
+        const ratings: Array<{ text: string; rating: Exclude<Rating, Rating.Manual>; cls: string }> = [
+            { text: 'Again', rating: Rating.Again, cls: 'fsrs-rating-again' },
+            { text: 'Hard', rating: Rating.Hard, cls: 'fsrs-rating-hard' },
+            { text: 'Good', rating: Rating.Good, cls: 'fsrs-rating-good' },
+            { text: 'Easy', rating: Rating.Easy, cls: 'fsrs-rating-easy' },
+        ];
+        
+        for (const { text, rating, cls } of ratings) {
             const btn = new ButtonComponent(this.controlsContainer)
                 .onClick(() => this.handleRating(rating));
-            btn.buttonEl.addClass('fsrs-rating-btn');
-            btn.buttonEl.setCssProps({ 'flex-direction': 'column' });
-            btn.buttonEl.setCssProps({ 'height': 'auto' });
-            btn.buttonEl.setCssProps({ 'padding': 'var(--size-4-3)' });
-            btn.buttonEl.setCssProps({ 'gap': '4px' });
-            
-            btn.buttonEl.createEl('strong', { 
-                text,
-                cls: 'fsrs-rating-text'
-            });
-            
-            btn.buttonEl.createEl('small', { 
-                text: interval, 
-                cls: 'fsrs-interval-hint' 
-            });
-            
-            if (modifierClass) {
-                btn.buttonEl.addClass(modifierClass);
-            }
-            
-            return btn;
-        };
-        
-        createButton('Again', Rating.Again, intervals[Rating.Again], 'mod-warning');
-        createButton('Hard', Rating.Hard, intervals[Rating.Hard], 'mod-secondary');
-        createButton('Good', Rating.Good, intervals[Rating.Good], 'mod-cta');
-        createButton('Easy', Rating.Easy, intervals[Rating.Easy]);
+            btn.buttonEl.addClass(cls);
+            btn.buttonEl.createSpan({ text, cls: 'fsrs-rating-text' });
+            btn.buttonEl.createEl('small', { text: intervals[rating], cls: 'fsrs-interval-hint' });
+        }
     }
     private async showNextCard() {
         if (this.currentCardIndex >= this.queue.length) { this.showCompletionScreen(); return; }
+
+        // Hide old answer / controls before swapping content to avoid flash of old back
+        this.answerContainer.hide();
+        this.controlsContainer.hide();
+
         this.state = 'question';
         const card = this.getCurrentCard();
         const deckPrefix = this.deckName ? `${this.deckName} • ` : '';
         this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
+
         this.frontEl.empty();
         this.backEl.empty();
         await MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.renderComponent);
         await MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.renderComponent);
 
-        this.showAnswerButton.buttonEl.setCssProps({ 'display': 'block' });
-        this.controlsContainer.setCssProps({ 'display': 'none' });
-        this.answerContainer.setCssProps({ 'display': 'none' });
+        this.showAnswerButton.buttonEl.show();
     }
     private showAnswer() {
         if (this.state === 'answer') return;
         this.createControlButtons();
         this.state = 'answer';
-        this.showAnswerButton.buttonEl.setCssProps({ 'display': 'none' });
-        this.controlsContainer.setCssProps({ 'display': 'grid' });
-        this.answerContainer.setCssProps({ 'display': 'block' });
+        this.showAnswerButton.buttonEl.hide();
+        this.controlsContainer.show();
+        this.answerContainer.show();
     }
     private handleRating(rating: Rating) {
         this.plugin.dataManager.updateCard(this.getCurrentCard(), rating);
         this.currentCardIndex++;
-        this.cardContainer.setCssProps({ 'transition': 'opacity 0.2s ease-in-out' });
-        this.cardContainer.setCssProps({ 'opacity': '0' });
-        setTimeout(() => {
-            void this.showNextCard();
-            this.cardContainer.setCssProps({ 'opacity': '1' });
-        }, 200);
+        void this.showNextCard();
     }
     private showCompletionScreen() {
         this.contentEl.empty();
@@ -1381,6 +1339,89 @@ class StatsModal extends Modal {
     }
 }
 
+// --- UI: HELP MODAL ---
+class HelpModal extends Modal {
+    private plugin: FSRSFlashcardsPlugin;
+
+    constructor(app: App, plugin: FSRSFlashcardsPlugin) {
+        super(app);
+        this.plugin = plugin;
+    }
+
+    onOpen() {
+        this.contentEl.empty();
+        this.titleEl.setText('Help & guide');
+        this.containerEl.addClass('fsrs-help-modal');
+
+        const header = this.contentEl.createDiv({ cls: 'fsrs-help-header' });
+        header.createEl('h2', { text: 'Lemma' });
+        header.createEl('p', { text: `v${this.plugin.manifest.version} — A spaced-repetition flashcard plugin powered by the FSRS algorithm.` });
+
+        this.renderSection('Creating Decks', [
+            `Add the tag #${this.plugin.settings.deckTag} to any note to make it a deck.`,
+            'You can change the tag in plugin settings.',
+            'Each note with the deck tag becomes a separate deck.'
+        ], [
+            `Use frontmatter: tags: [${this.plugin.settings.deckTag}]`,
+            `Or inline: # My Note #${this.plugin.settings.deckTag}`
+        ]);
+
+        this.renderSection('Card Formats', [
+            'Basic cards have a front (question) and back (answer).',
+            'Cloze deletion cards hide specific words within a sentence.',
+            'Use the command palette to insert a card template.'
+        ], [
+            'Basic: ---card--- ^id / Front / --- / Back',
+            'Cloze: ==c1::hidden text==',
+            'Use block IDs (^unique-id) to preserve review history when editing.'
+        ]);
+
+        this.renderSection('Review Hotkeys', [], [
+            ['Space / Enter', 'Show answer'],
+            ['1', 'Again'],
+            ['2', 'Hard'],
+            ['3', 'Good'],
+            ['4', 'Easy'],
+            ['Esc', 'Exit review session']
+        ]);
+
+        this.renderSection('Tips', [
+            'Use Custom Study to filter by tags or card state.',
+            'Enable PouchDB for better performance with large collections.',
+            'Use Sync to keep your data across devices via CouchDB.',
+            'Full documentation is available in the plugin settings (About section).'
+        ], []);
+    }
+
+    private renderSection(title: string, paragraphs: string[], items: string[] | string[][]) {
+        const section = this.contentEl.createDiv({ cls: 'fsrs-help-section' });
+        section.createEl('h3', { text: title });
+
+        for (const p of paragraphs) {
+            section.createEl('p', { text: p });
+        }
+
+        if (items.length > 0) {
+            if (Array.isArray(items[0])) {
+                const grid = section.createDiv({ cls: 'fsrs-help-shortcuts' });
+                for (const [key, desc] of items as string[][]) {
+                    grid.createEl('span', { cls: 'fsrs-help-key', text: key });
+                    grid.createEl('span', { text: desc });
+                }
+            } else {
+                const ul = section.createEl('ul');
+                for (const item of items as string[]) {
+                    ul.createEl('li', { text: item });
+                }
+            }
+        }
+    }
+
+    onClose() {
+        this.contentEl.empty();
+    }
+}
+
 // --- UI: CUSTOM STUDY MODAL ---
 class CustomStudyModal extends Modal {
     private plugin: FSRSFlashcardsPlugin; private tags: string = ""; private state: "new" | "due" | "learning" | "all" = "due"; private limit: number = 50; private unlimited: boolean = false;
@@ -1453,14 +1494,11 @@ class ResetProgressModal extends Modal {
         
         // Warning message
         const warningContainer = this.contentEl.createDiv({ cls: 'fsrs-reset-warning' });
-        warningContainer.setCssProps({ 'background-color': 'var(--background-modifier-error)' });
-        warningContainer.setCssProps({ 'padding': 'var(--size-4-4)' });
-        warningContainer.setCssProps({ 'border-radius': 'var(--radius-m)' });
-        warningContainer.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
+        warningContainer.addClass('setting-item-heading');
         
         warningContainer.createEl('h3', { 
             text: 'Warning: this action cannot be undone.',
-            attr: { style: 'color: var(--text-error); margin-top: 0;' }
+            cls: 'mod-warning'
         });
         
         warningContainer.createEl('p', { 
@@ -1475,7 +1513,6 @@ class ResetProgressModal extends Modal {
         
         // Stats display
         const statsContainer = this.contentEl.createDiv({ cls: 'fsrs-reset-stats' });
-        statsContainer.setCssProps({ 'margin-bottom': 'var(--size-4-4)' });
         
         const allCards = this.plugin.dataManager.getAllCards();
         const cardsWithProgress = allCards.filter((card) => card.fsrsData && card.fsrsData.state !== State.New).length;
@@ -1535,7 +1572,6 @@ class FSRSSettingsTab extends PluginSettingTab {
     display(): void { 
         const { containerEl } = this; 
         containerEl.empty(); 
-        ; 
         
         // Database
         new Setting(containerEl).setName("Database").setHeading();
@@ -1776,8 +1812,23 @@ class FSRSSettingsTab extends PluginSettingTab {
                         }
                     });
                 text.inputEl.rows = 5;
-                text.inputEl.setCssProps({ 'width': '100%' });
+                text.inputEl.addClass('fsrs-weights-textarea');
             });
+
+        new Setting(containerEl).setName('About').setHeading();
+
+        new Setting(containerEl)
+            .setName('Lemma')
+            .setDesc(`v${this.plugin.manifest.version} by Sapienskid — FSRS-based spaced repetition flashcards.`);
+
+        new Setting(containerEl)
+            .addButton(btn => btn
+                .setButtonText('Quick reference')
+                .setCta()
+                .onClick(() => new HelpModal(this.app, this.plugin).open()))
+            .addButton(btn => btn
+                .setButtonText('Report issue')
+                .onClick(() => window.open('https://github.com/sapienskid/Lemma/issues', '_blank')));
     }
     
     async migrateData() {

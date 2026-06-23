@@ -1,118 +1,93 @@
 # Lemma
 
-Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS spaced-repetition algorithm.
+Lemma is an Obsidian plugin for creating and reviewing flashcards with the FSRS (Free Spaced Repetition Scheduler) algorithm.
 
 ## Features
 
-- FSRS scheduling for new, learning, and review cards
-- Basic and cloze card support
-- Dashboard with deck stats and due counts
-- Immersive review and browse modals
-- Custom study filters (tags, state, limits)
-- Optional PouchDB local storage for large collections
-- Optional CouchDB sync support
-- Review statistics with charts
+- **FSRS scheduling** - Modern spaced repetition algorithm for optimal memory retention
+- **Basic & cloze cards** - Support for multiple card formats
+- **Dashboard view** - Overview of all decks with due counts and stats
+- **Immersive review** - Full-screen review mode with keyboard shortcuts
+- **Custom study sessions** - Filter by tags, card state, or limits
+- **CouchDB sync** - Sync your progress across devices (optional)
+- **PouchDB storage** - Better performance for large collections (optional)
+- **Review statistics** - Activity charts and forecast tracking
 
 ## Requirements
 
-- Obsidian `>= 0.15.0`
+- Obsidian **v1.0.0 or later**
 
 ## Installation
 
-### Community plugins
+### From Community Plugins
 
-1. Open **Settings → Community plugins**.
-2. Search for **Lemma**.
-3. Install and enable the plugin.
+1. Open **Settings → Community plugins**
+2. Disable **Safe mode** if prompted
+3. Search for **Lemma**
+4. Install and enable the plugin
 
-### Manual installation
+### Manual Installation
 
-1. Download release assets from GitHub:
-   - `main.js`
-   - `manifest.json`
-   - `styles.css`
-2. Create folder: `.obsidian/plugins/lemma-flashcards/`
-3. Copy the files into that folder.
-4. Reload Obsidian and enable **Lemma**.
+1. Download the latest release from GitHub
+2. Extract `main.js`, `manifest.json`, and `styles.css` to `.obsidian/plugins/lemma-flashcards/`
+3. Reload Obsidian and enable the plugin
 
-## Quick start
+## Quick Start
 
-1. Add your deck tag (default `#flashcards`) to notes you want indexed.
-2. Add cards using one of the formats below.
-3. Open the dashboard from the right-side status bar **Lemma** button or run **Lemma: Open dashboard** from the command palette.
-4. Start reviewing due cards.
+1. Add `#flashcards` tag to any note (or configure a custom tag in settings)
+2. Create cards using the formats below
+3. Open the **Lemma dashboard** from the status bar or command palette
+4. Start reviewing due cards
 
-## Card formats
+## Card Formats
 
-### Basic
+### Basic Cards
 
-```markdown
+```
 ---card--- ^unique-id
-Front content
+Front content here
 ---
-Back content
+Back content here
 ```
 
-### Cloze
+### Cloze Deletion Cards
 
-```markdown
-This is a ==c1::cloze== deletion card.
 ```
+The capital of France is ==c1::Paris==.
+```
+
+Note: Use block IDs (`^unique-id`) to preserve review history when editing cards.
 
 ## Commands
 
-- `Add a new flashcard`
-- `Open dashboard`
-- `Sync now` (when sync is enabled)
-- `Check sync status` (when sync is enabled)
-- `Reset all card progress (nuclear option)`
+| Command | Action |
+|---------|--------|
+| `Add a new flashcard` | Insert a basic card template |
+| `Open dashboard` | Open the Lemma dashboard |
+| `Sync now` | Manual sync (when sync is enabled) |
+| `Check sync status` | View sync status (when sync is enabled) |
+| `Reset all card progress` | Delete all review data |
 
-## Sync setup (CouchDB)
+## Review Hotkeys
 
-1. Open **Settings -> Lemma -> Database** and keep **Use PouchDB (IndexedDB)** enabled.
-2. In **Settings -> Lemma -> Sync**, fill:
-   - `CouchDB server URL` (server root, for example `https://your-server.com:5984`)
-   - `Database name` (for example `lemma`)
-   - `Username`
-   - `Password`
-3. Click **Run test** in `Test sync`:
-   - verifies local + remote DB connectivity
-   - if sync is enabled, also runs a one-time manual sync check
-4. Enable **Enable sync** to start continuous sync.
-5. Use:
-   - `Sync now` command for manual sync
-   - `Check sync status` command for current status/details
-
-Notes:
-- The plugin appends the database name to the server URL automatically.
-- If sync is disabled, `Run test` still validates connection without starting continuous sync.
+| Key | Action |
+|-----|--------|
+| `Space` / `Enter` | Show answer |
+| `1` | Rate: Again |
+| `2` | Rate: Hard |
+| `3` | Rate: Good |
+| `4` | Rate: Easy |
+| `Esc` | Exit review session |
 
 ## Settings
 
-- Deck tag
-- Daily limits for new/review cards
-- Review font size
-- FSRS parameters (advanced)
-- Storage mode (JSON or PouchDB)
-- Sync server and credentials
-- Sync test button (connection + manual sync check)
-
-## Development
-
-```bash
-pnpm install
-pnpm run lint
-pnpm run build
-pnpm run dev
-```
-
-Deploy to a local vault (copies `main.js`, `manifest.json`, and `styles.css` if present):
-
-```bash
-pnpm run deploy
-# or
-OBSIDIAN_VAULT="/path/to/vault" pnpm run deploy
-```
+- **Deck tag** - The tag that identifies deck notes (default: `flashcards`)
+- **Max new cards per day** - Daily limit for new card introductions
+- **Max reviews per day** - Daily limit for card reviews
+- **Review font size** - Font size in review mode
+- **FSRS parameters** - Advanced algorithm tuning
+- **PouchDB** - IndexedDB storage for large collections (recommended for 10k+ cards)
+- **Sync** - CouchDB server configuration for cross-device sync
 
 ## License
 

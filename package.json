@@ -1,7 +1,7 @@
 {
   "name": "lemma-flashcards",
   "version": "1.0.0",
-  "description": "Create and review flashcards in your vault using the FSRS algorithm for spaced repetition.",
+  "description": "Create and review flashcards with spaced repetition using the FSRS algorithm. Supports cloze deletions, custom study sessions, statistics, and CouchDB sync.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -12,9 +12,20 @@
   },
   "keywords": [
     "obsidian-md",
+    "obsidian",
+    "plugin",
     "flashcards",
+    "flash card",
     "spaced-repetition",
-    "fsrs"
+    "spaced repetition",
+    "fsrs",
+    "anki",
+    "study",
+    "memory",
+    "review",
+    "cloze",
+    "srs",
+    "learning"
   ],
   "author": "Sapienskid",
   "license": "ISC",

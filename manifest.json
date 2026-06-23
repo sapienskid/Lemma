@@ -3,8 +3,9 @@
   "name": "Lemma",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "Create and review flashcards in your vault using the FSRS algorithm for spaced repetition.",
+  "description": "Create and review flashcards with spaced repetition using the FSRS algorithm. Supports cloze deletions, custom study sessions, statistics, and CouchDB sync.",
   "author": "Sapienskid",
   "authorUrl": "https://github.com/sapienskid",
+  "fundingUrl": "https://github.com/sapienskid/Lemma",
   "isDesktopOnly": false
 }
