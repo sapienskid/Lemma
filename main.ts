@@ -1262,7 +1262,8 @@ class StatsModal extends Modal {
         setIcon(activityIcon, 'activity');
         activityHeader.createEl('h3', { text: '30-day activity' });
         
-        const activityCanvas = activityCard.createEl('canvas', { cls: 'fsrs-chart-canvas' });
+        const activityCanvasWrapper = activityCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const activityCanvas = activityCanvasWrapper.createEl('canvas', { cls: 'fsrs-chart-canvas' });
         const activityLabels = Array.from({ length: 30 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (29 - i));
@@ -1303,7 +1304,8 @@ class StatsModal extends Modal {
         setIcon(forecastIcon, 'calendar');
         forecastHeader.createEl('h3', { text: '7-day forecast' });
         
-        const forecastCanvas = forecastCard.createEl('canvas', { cls: 'fsrs-chart-canvas' });
+        const forecastCanvasWrapper = forecastCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const forecastCanvas = forecastCanvasWrapper.createEl('canvas', { cls: 'fsrs-chart-canvas' });
         const forecastLabels = Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() + i);

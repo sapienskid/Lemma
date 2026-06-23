@@ -459,36 +459,39 @@
 
 /* ── Rating buttons ── */
 
-.fsrs-rating-btn {
+.fsrs-review-controls .fsrs-rating-again,
+.fsrs-review-controls .fsrs-rating-hard,
+.fsrs-review-controls .fsrs-rating-good,
+.fsrs-review-controls .fsrs-rating-easy {
     min-height: 44px;
-    flex-direction: column !important;
-    height: auto !important;
-    padding: var(--size-4-2) var(--size-4-3) !important;
-    gap: 2px !important;
+    flex-direction: column;
+    height: auto;
+    padding: var(--size-4-2) var(--size-4-3);
+    gap: 2px;
 }
 
-.fsrs-rating-again:hover {
-    background-color: rgba(var(--color-red-rgb), 0.15) !important;
-    border-color: var(--color-red) !important;
-    color: var(--color-red) !important;
+.fsrs-review-controls .fsrs-rating-again:hover {
+    background-color: rgba(var(--color-red-rgb), 0.15);
+    border-color: var(--color-red);
+    color: var(--color-red);
 }
 
-.fsrs-rating-hard:hover {
-    background-color: rgba(var(--color-orange-rgb), 0.15) !important;
-    border-color: var(--color-orange) !important;
-    color: var(--color-orange) !important;
+.fsrs-review-controls .fsrs-rating-hard:hover {
+    background-color: rgba(var(--color-orange-rgb), 0.15);
+    border-color: var(--color-orange);
+    color: var(--color-orange);
 }
 
-.fsrs-rating-good:hover {
-    background-color: rgba(var(--color-green-rgb), 0.15) !important;
-    border-color: var(--color-green) !important;
-    color: var(--color-green) !important;
+.fsrs-review-controls .fsrs-rating-good:hover {
+    background-color: rgba(var(--color-green-rgb), 0.15);
+    border-color: var(--color-green);
+    color: var(--color-green);
 }
 
-.fsrs-rating-easy:hover {
-    background-color: rgba(var(--color-cyan-rgb), 0.15) !important;
-    border-color: var(--color-cyan) !important;
-    color: var(--color-cyan) !important;
+.fsrs-review-controls .fsrs-rating-easy:hover {
+    background-color: rgba(var(--color-cyan-rgb), 0.15);
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
 }
 
 .fsrs-rating-text {
@@ -694,8 +697,14 @@
     height: 14px;
 }
 
+.fsrs-chart-canvas-wrapper {
+    position: relative;
+    height: 200px;
+}
+
 .fsrs-chart-canvas {
-    height: 200px !important;
+    width: 100%;
+    height: 100%;
 }
 
 /* ── Help modal ── */
@@ -948,8 +957,8 @@
         padding: var(--size-4-2);
     }
 
-    .fsrs-chart-canvas {
-        height: 160px !important;
+    .fsrs-chart-canvas-wrapper {
+        height: 160px;
     }
 
     .fsrs-help-header {
