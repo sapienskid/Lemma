@@ -57,5 +57,10 @@
     "events": "^3.3.0",
     "pouchdb-browser": "^9.0.0",
     "ts-fsrs": "^4.1.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.1.0"
+    }
   }
 }
