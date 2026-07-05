@@ -43,6 +43,19 @@
     height: 100vh;
     max-height: 100vh;
     border-radius: 0;
+    padding-top: max(var(--size-4-4), var(--safe-area-inset-top));
+    padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
+}
+
+.fsrs-review-modal-immersive.modal-container .modal-close-button {
+    top: max(var(--size-4-4), var(--safe-area-inset-top));
+}
+
+.fsrs-review-modal-immersive.modal-container .modal-title {
+    white-space: normal;
+    line-height: 1.3;
+    font-size: var(--font-ui-small);
+    padding-right: var(--size-4-8); /* Ensure it doesn't overlap the close button */
 }
 
 .fsrs-review-modal-immersive .modal-header-controls {
@@ -50,6 +63,17 @@
     flex-direction: row-reverse;
     align-items: center;
     gap: var(--size-4-2);
+}
+
+.fsrs-counter-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: var(--background-modifier-accent);
+    color: var(--text-on-accent);
+    border-radius: var(--radius-s);
+    font-size: var(--font-ui-smaller);
+    margin-left: var(--size-4-2);
+    vertical-align: text-bottom;
 }
 
 /* ── Dashboard header ── */
@@ -590,6 +614,13 @@
     max-height: 100%;
 }
 
+/* ── Browse navigation buttons ── */
+
+.fsrs-browse-container > div > button {
+    min-height: 44px;
+    min-width: 44px;
+}
+
 /* ── Stats modal ── */
 
 .fsrs-stats-modal .modal-content {
@@ -858,13 +889,76 @@
     margin-bottom: var(--size-4-6);
 }
 
-/* ── Responsive ── */
+/* ════════════════════════════════════════════
+   MOBILE / TOUCH RESPONSIVE STYLES
+   Target: Obsidian mobile app (Android & iOS)
+   Strategy: specificity over !important
+   ════════════════════════════════════════════ */
 
+/* Touch-device baseline — any pointer:coarse device (phones, tablets) */
+@media (pointer: coarse) {
+    /* Ensure all interactive row targets are tall enough to tap */
+    .fsrs-folder-header,
+    .fsrs-deck-row {
+        min-height: 44px;
+    }
+
+    /* Always show actions (no hover on touch) */
+    .fsrs-deck-row-actions {
+        opacity: 1;
+    }
+
+    /* Larger tap targets for icon buttons */
+    .fsrs-deck-row-actions .clickable-icon {
+        padding: 8px;
+        min-width: 36px;
+        min-height: 36px;
+    }
+
+    /* Larger action buttons in header */
+    .fsrs-quick-actions button {
+        min-height: 44px;
+    }
+
+    /* Bigger rating buttons for fingers */
+    .fsrs-review-controls .fsrs-rating-again,
+    .fsrs-review-controls .fsrs-rating-hard,
+    .fsrs-review-controls .fsrs-rating-good,
+    .fsrs-review-controls .fsrs-rating-easy {
+        min-height: 56px;
+        padding: var(--size-4-3) var(--size-4-2);
+    }
+
+    /* Bigger show-answer button */
+    .fsrs-show-answer-btn {
+        min-height: 56px;
+    }
+
+    /* Comfortable padding on card, remove border/bg to save space */
+    .fsrs-review-card {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+        background-color: transparent;
+        border: none;
+        box-shadow: none;
+    }
+
+    /* Browse nav buttons: bigger tap targets */
+    .fsrs-browse-container > div > button {
+        min-height: 52px;
+        min-width: 52px;
+    }
+}
+
+/* ── Narrow viewport (phone-width panel, ≤ 500px) ── */
 @media (max-width: 500px) {
+    /* Dashboard header: tighter padding */
     .fsrs-dashboard-header {
         padding: var(--size-4-2);
     }
 
+    /* Stack title and actions vertically */
     .fsrs-header-top {
         flex-direction: column;
         gap: var(--size-4-2);
@@ -875,17 +969,27 @@
         font-size: var(--font-ui-small);
     }
 
+    /* Action bar wraps and fills width */
     .fsrs-quick-actions {
         gap: var(--size-4-1);
         width: 100%;
     }
 
-    .fsrs-quick-actions button {
-        flex: 1;
-        min-height: 36px;
+    /* Buttons stretch to fill row */
+    .fsrs-quick-actions > button {
+        flex: 1 1 0;
+        min-height: 40px;
         font-size: var(--font-smaller);
+        padding-left: var(--size-4-2);
+        padding-right: var(--size-4-2);
     }
 
+    /* Icon row sits next to buttons naturally via flex-wrap */
+    .fsrs-icon-row {
+        margin-left: auto;
+    }
+
+    /* Stats pills row */
     .fsrs-stats-cards {
         gap: var(--size-4-1);
         flex-wrap: wrap;
@@ -896,52 +1000,95 @@
         font-size: var(--font-smallest);
     }
 
+    /* Truncation label allowed to wrap on very small widths */
     .fsrs-stat-pill span:last-child {
         white-space: nowrap;
     }
 
+    /* Folder rows */
     .fsrs-folder-header {
         padding: var(--size-4-1) var(--size-4-2);
+        min-height: 44px;
     }
 
     .fsrs-folder-decks {
         padding-left: var(--size-4-2);
     }
 
+    /* Deck rows */
     .fsrs-deck-row {
         padding: 4px var(--size-4-2);
+        min-height: 44px;
     }
 
+    /* Always show deck actions on mobile */
     .fsrs-deck-row-actions {
         opacity: 1;
     }
 
+    /* Review: stack rating buttons 2-per-row so fingers can hit them */
     .fsrs-review-controls {
         grid-template-columns: repeat(2, 1fr);
         gap: var(--size-4-1);
+        margin-top: var(--size-4-2);
     }
 
-    .fsrs-rating-btn {
-        min-height: 48px;
+    /* Rating buttons: tall enough to tap */
+    .fsrs-review-controls .fsrs-rating-again,
+    .fsrs-review-controls .fsrs-rating-hard,
+    .fsrs-review-controls .fsrs-rating-good,
+    .fsrs-review-controls .fsrs-rating-easy {
+        min-height: 56px;
     }
 
+    /* Show answer button */
+    .fsrs-show-answer-btn {
+        min-height: 52px;
+    }
+
+    /* Review card: fully native mobile flow, no separate card box */
     .fsrs-review-card {
-        padding: var(--size-4-2);
-        margin: var(--size-4-2);
+        padding: 0;
+        margin: 0;
         max-width: 100%;
+        background-color: transparent;
+        border: none;
+        box-shadow: none;
     }
 
     .fsrs-review-container {
         padding: var(--size-4-2);
     }
 
+    .fsrs-bottom-controls {
+        padding-top: var(--size-4-2);
+    }
+
+    /* Browse modal: stack nav buttons vertically */
+    .fsrs-browse-container {
+        flex-direction: column;
+        gap: var(--size-4-2);
+        align-items: stretch;
+    }
+
+    .fsrs-browse-card-wrapper {
+        order: -1;
+        max-height: calc(100% - 120px);
+    }
+
+    .fsrs-browse-container > div {
+        display: flex;
+        justify-content: center;
+    }
+
+    /* Stats header: 2-column grid of cards */
     .fsrs-stats-header {
         gap: var(--size-4-2);
         padding: var(--size-4-2);
     }
 
     .fsrs-stat-header-card {
-        flex: 1 1 calc(50% - 8px);
+        flex: 1 1 calc(50% - 4px);
         padding: var(--size-4-2);
     }
 
@@ -949,8 +1096,10 @@
         font-size: var(--font-ui-medium);
     }
 
+    /* Charts */
     .fsrs-stats-charts {
         padding: var(--size-4-2);
+        gap: var(--size-4-2);
     }
 
     .fsrs-chart-card {
@@ -958,9 +1107,10 @@
     }
 
     .fsrs-chart-canvas-wrapper {
-        height: 160px;
+        height: 150px;
     }
 
+    /* Help modal */
     .fsrs-help-header {
         padding: var(--size-4-2);
     }
@@ -969,14 +1119,17 @@
         padding: var(--size-4-2);
     }
 
+    /* Shortcut grid: tighter on small screens */
+    .fsrs-help-shortcuts {
+        font-size: var(--font-smaller);
+    }
+
+    /* Empty state */
     .fsrs-empty-state {
         padding: var(--size-4-8) var(--size-4-2);
     }
 
-    .fsrs-browse-container {
-        gap: var(--size-4-2);
-    }
-
+    /* Completion */
     .fsrs-completion-screen {
         padding: var(--size-4-4);
     }
@@ -985,12 +1138,15 @@
         font-size: var(--font-ui-large);
     }
 
+    /* Reset warning */
     .fsrs-reset-warning {
         padding: var(--size-4-2);
     }
 }
 
+/* ── Very narrow (≤ 380px — smallest Android phones) ── */
 @media (max-width: 380px) {
+    /* Stats pills go vertical, pill-style for readability */
     .fsrs-stats-cards {
         flex-direction: column;
         align-items: stretch;
@@ -1012,35 +1168,84 @@
     .fsrs-stat-pill span:last-child {
         white-space: normal;
     }
+
+    /* Full-width stat cards */
+    .fsrs-stat-header-card {
+        flex: 1 1 100%;
+    }
+
+    /* Single-column rating buttons for very narrow screens */
+    .fsrs-review-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Action buttons: icon only to save space */
+    .fsrs-quick-actions > button span:not(.fsrs-action-badge) {
+        display: none;
+    }
+
+    /* Wider folder names */
+    .fsrs-folder-name {
+        font-size: var(--font-smaller);
+    }
 }
 
-@media (pointer: coarse) {
-    .fsrs-folder-header,
-    .fsrs-deck-row {
-        min-height: 44px;
-    }
-
-    .fsrs-deck-row-actions {
-        opacity: 1;
-    }
-
-    .fsrs-quick-actions button {
-        min-height: 40px;
-    }
-
-    .fsrs-rating-btn {
-        min-height: 52px;
-    }
-
-    .fsrs-show-answer-btn {
-        min-height: 52px;
+/* ── Landscape phone (height-constrained, ≤ 480px tall) ── */
+@media (max-height: 480px) and (pointer: coarse) {
+    /* Compact the review card to leave room for controls */
+    .fsrs-review-container {
+        padding: var(--size-4-1) var(--size-4-2);
     }
 
     .fsrs-review-card {
-        padding: var(--size-4-3);
+        padding: var(--size-4-2);
+        margin: var(--size-4-1) auto;
+        min-height: 60px;
     }
 
-    .fsrs-deck-row-actions .clickable-icon {
-        padding: 6px;
+    .fsrs-bottom-controls {
+        padding-top: var(--size-4-1);
+    }
+
+    /* Slightly smaller rating buttons to fit 4 across */
+    .fsrs-review-controls {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--size-4-1);
+        margin-top: var(--size-4-1);
+    }
+
+    .fsrs-review-controls .fsrs-rating-again,
+    .fsrs-review-controls .fsrs-rating-hard,
+    .fsrs-review-controls .fsrs-rating-good,
+    .fsrs-review-controls .fsrs-rating-easy {
+        min-height: 48px;
+        padding: var(--size-4-1) var(--size-4-2);
+    }
+
+    .fsrs-show-answer-btn {
+        min-height: 44px;
+        margin-bottom: var(--size-4-1);
+    }
+
+    /* Dashboard: hide stat pills to save vertical space */
+    .fsrs-stats-cards {
+        display: none;
     }
 }
+
+/* ── Reduced motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+    .is-spinning svg,
+    .loading-spinner svg {
+        animation: none;
+    }
+
+    .fsrs-folder-chevron svg,
+    .fsrs-deck-row,
+    .fsrs-folder-header {
+        transition: none;
+    }
+}
+
+
+

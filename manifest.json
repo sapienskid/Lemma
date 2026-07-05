@@ -1,7 +1,7 @@
 {
   "id": "lemma-flashcards",
   "name": "Lemma",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "0.15.0",
   "description": "Create and review flashcards with spaced repetition using the FSRS algorithm. Supports cloze deletions, custom study sessions, statistics, and CouchDB sync.",
   "author": "Sapienskid",

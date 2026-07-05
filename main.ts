@@ -16,7 +16,7 @@ import {
     setIcon
 } from 'obsidian';
 import { FSRS, generatorParameters, Rating, State, Card as FSRSCard } from 'ts-fsrs';
-import * as CryptoJS from 'crypto-js';
+// crypto-js removed: using built-in Web Crypto API instead
 import { Chart, registerables } from 'chart.js';
 import { PouchDBManager } from './src/database/PouchDBManager';
 import { DataMigration, type LegacyPluginData } from './src/database/DataMigration';
@@ -80,6 +80,7 @@ function sanitizeCredentialForUrl(value: string): string {
 }
 
 
+/** Generates a random block-id string for new flashcard templates. */
 function generateBlockId(length: number = 6): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
@@ -87,6 +88,20 @@ function generateBlockId(length: number = 6): string {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return `fsrs-${result}`;
+}
+
+/** Synchronous hash function (cyrb53) that works in all environments, even without Secure Context. */
+function cyrb53hex(str: string, seed = 0): string {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0, ch; i < str.length; i++) {
+        ch = str.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 2654435761);
+        h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    const hash = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+    return hash.toString(16).padStart(16, '0');
 }
 
 // --- DATA INTERFACES ---
@@ -327,7 +342,7 @@ class DataManager {
         this.recalculateAllDeckStats();
         console.debug(`FSRS: Index complete. Found ${this.decks.size} decks and ${this.cards.size} cards.`);
     }
-    private getDeckId(path: string): string { return CryptoJS.SHA256(path).toString(); }
+    private getDeckId(path: string): string { return cyrb53hex(path); }
     async updateFile(file: TFile) {
         const deckId = this.getDeckId(file.path);
         const cache = this.plugin.app.metadataCache.getFileCache(file);
@@ -361,7 +376,7 @@ class DataManager {
                 cardId = `${deckId}::${blockIdMatch[1]}`;
                 front = frontPart.replace(/\^([a-zA-Z0-9-]+)\s*$/m, '').trim();
             } else {
-                cardId = CryptoJS.SHA256(file.path + '::' + front).toString();
+                cardId = cyrb53hex(file.path + '::' + front);
             }
 
             const back = backPart.trim();
@@ -390,7 +405,7 @@ class DataManager {
                     // Namespace with deckId to prevent collisions across decks
                     cardId = `${deckId}::${blockIdMatch[1]}-${clozeNum}`;
                 } else {
-                    cardId = CryptoJS.SHA256(`${file.path}::${paragraph}::${clozeNum}`).toString();
+                    cardId = cyrb53hex(`${file.path}::${paragraph}::${clozeNum}`);
                 }
 
                 const front = paragraph.replace(originalCloze, '[...]');
@@ -1060,9 +1075,10 @@ class ReviewModal extends Modal {
     onOpen() {
         this.renderComponent = new Component();
         this.containerEl.addClass('fsrs-review-modal-immersive');
-        this.contentEl.empty();
-        const deckPrefix = this.deckName ? `${this.deckName} • ` : '';
-        this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
+        const deckPrefix = this.deckName ? this.deckName : 'Reviewing';
+        this.titleEl.empty();
+        this.titleEl.createSpan({ text: deckPrefix });
+        this.titleEl.createSpan({ text: `${this.currentCardIndex + 1}/${this.queue.length}`, cls: 'fsrs-counter-badge' });
         this.setupUI();
         void this.showNextCard();
         this.scope.register([], 'keydown', (evt: KeyboardEvent) => this.handleKeyPress(evt));
@@ -1146,8 +1162,10 @@ class ReviewModal extends Modal {
 
         this.state = 'question';
         const card = this.getCurrentCard();
-        const deckPrefix = this.deckName ? `${this.deckName} • ` : '';
-        this.titleEl.setText(`${deckPrefix}Reviewing (${this.currentCardIndex + 1}/${this.queue.length})`);
+        const deckPrefix = this.deckName ? this.deckName : 'Reviewing';
+        this.titleEl.empty();
+        this.titleEl.createSpan({ text: deckPrefix });
+        this.titleEl.createSpan({ text: `${this.currentCardIndex + 1}/${this.queue.length}`, cls: 'fsrs-counter-badge' });
 
         this.frontEl.empty();
         this.backEl.empty();
@@ -2008,6 +2026,13 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         
         this.addSettingTab(new FSRSSettingsTab(this.app, this));
         this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
+        
+        // Ribbon Icon (Essential for mobile users)
+        const ribbonIconEl = this.addRibbonIcon(VIEW_ICON_NAME, 'Open Lemma dashboard', (evt: MouseEvent) => {
+            void this.activateView();
+        });
+        ribbonIconEl.addClass('lemma-ribbon-icon');
+        
         const statusButton = this.addStatusBarItem();
         statusButton.addClass('lemma-status-button');
         statusButton.setAttribute('aria-label', 'Open Lemma dashboard');
@@ -2086,7 +2111,8 @@ export default class FSRSFlashcardsPlugin extends Plugin {
         }));
         this.registerEvent(this.app.vault.on('delete', (file) => {
             if (file instanceof TFile) {
-                this.dataManager.removeDeck(this.dataManager['getDeckId'](file.path));
+                const deckId = this.dataManager['getDeckId'](file.path);
+                this.dataManager.removeDeck(deckId);
                 debouncedRefresh();
             }
         }));
@@ -2130,15 +2156,27 @@ export default class FSRSFlashcardsPlugin extends Plugin {
     }
     async activateView() {
         const { workspace } = this.app;
-        let leaf = workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0];
+        const leaves = workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD);
+        let leaf = leaves.length > 0 ? leaves[0] : null;
 
         if (leaf) {
-            await workspace.revealLeaf(leaf);
-            return;
+            // Check if it's in a sidebar (root is left or right split, not main area)
+            const isSidebar = leaf.getRoot() !== workspace.rootSplit;
+            if (isSidebar) {
+                // Destroy the cramped sidebar leaf
+                leaf.detach();
+                leaf = null;
+            } else {
+                await workspace.revealLeaf(leaf);
+                return;
+            }
         }
 
-        leaf = workspace.getRightLeaf(false) || workspace.getLeaf(true);
-        await leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, active: true });
+        if (!leaf) {
+            leaf = workspace.getLeaf('tab') || workspace.getLeaf(true);
+            await leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, active: true });
+        }
+        
         await workspace.revealLeaf(leaf);
     }
     refreshDashboardView() { const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD)[0]; if (leaf?.view instanceof DashboardView) { (leaf.view).render(); } }
