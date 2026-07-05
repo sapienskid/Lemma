@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  uuid: ^11.1.0
+
 importers:
 
   .:
@@ -1432,8 +1435,8 @@ packages:
   uri-js@4.4.1:
     resolution: {integrity: sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==}
 
-  uuid@8.3.2:
-    resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
   vuvuzela@1.0.3:
@@ -2847,7 +2850,7 @@ snapshots:
   pouchdb-browser@9.0.0:
     dependencies:
       spark-md5: 3.0.2
-      uuid: 8.3.2
+      uuid: 11.1.1
       vuvuzela: 1.0.3
 
   prelude-ls@1.2.1: {}
@@ -3158,7 +3161,7 @@ snapshots:
     dependencies:
       punycode: 2.3.1
 
-  uuid@8.3.2: {}
+  uuid@11.1.1: {}
 
   vuvuzela@1.0.3: {}
 
