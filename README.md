@@ -108,14 +108,6 @@ Note: Use block IDs (`^unique-id`) to preserve review history when editing cards
 
 ISC License. See `LICENSE`.
 
-## Release Notes
+## Changelog
 
-### v1.0.1 (Mobile Compatibility Update)
-- **Mobile Support:** Fully resolved initialization crashes on Obsidian Mobile by migrating from Web Crypto API to a synchronous, environment-agnostic hash function.
-- **Node Polyfills:** Bundled browser polyfills for Node internals (like `events`) required by PouchDB, preventing fatal `Module Not Found` errors on Capacitor/Cordova WebViews.
-- **Mobile Ribbon Integration:** Added a sleek new icon to the mobile ribbon menu, making it incredibly easy to open the Lemma dashboard with a single swipe.
-- **Responsive Dashboard:** The dashboard now dynamically forces itself into the main workspace tab instead of getting cramped in a hidden sidebar layout.
-- **Native Immersive Review:** Redesigned the mobile flashcard review modal. Removed bulky "card" styling so content seamlessly fills the screen edge-to-edge.
-- **Safe Area Insets:** Fixed critical bugs where the device notch and bottom swipe bars overlapped the review modal. The header and close button now perfectly respect `--safe-area-inset-top`.
-- **Compact Badges:** Replaced long wrapping modal titles with a beautiful, space-saving pill badge (e.g., `1/20`) for the review counter.
-- **Security Check:** Removed the outdated `crypto-js` dependency, entirely clearing plugin security scan warnings.
+See [CHANGELOG.md](CHANGELOG.md) for a history of changes to this plugin.
