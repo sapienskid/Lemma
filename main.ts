@@ -1589,13 +1589,44 @@ class ResetProgressModal extends Modal {
 // --- UI: SETTINGS TAB ---
 class FSRSSettingsTab extends PluginSettingTab {
     plugin: FSRSFlashcardsPlugin; constructor(app: App, plugin: FSRSFlashcardsPlugin) { super(app, plugin); this.plugin = plugin; }
-    display(): void { 
-        const { containerEl } = this; 
-        containerEl.empty(); 
-        
-        // Database
-        new Setting(containerEl).setName("Database").setHeading();
-        
+    display(): void {
+        const { containerEl } = this;
+        containerEl.empty();
+
+        const tabNav = containerEl.createEl('div', { cls: 'lemma-tab-nav' });
+        const tabContent = containerEl.createEl('div', { cls: 'lemma-tab-content' });
+
+        const tabs = [
+            { id: 'general', label: 'General' },
+            { id: 'sync', label: 'Sync' },
+            { id: 'advanced', label: 'Advanced' },
+            { id: 'about', label: 'About' },
+        ];
+
+        const showTab = (tabId: string) => {
+            tabContent.empty();
+            tabNav.querySelectorAll('.lemma-tab-button').forEach(b => b.removeClass('active'));
+            tabNav.querySelector(`[data-tab="${tabId}"]`)?.addClass('active');
+            switch (tabId) {
+                case 'general': this.renderGeneralTab(tabContent); break;
+                case 'sync': this.renderSyncTab(tabContent); break;
+                case 'advanced': this.renderAdvancedTab(tabContent); break;
+                case 'about': this.renderAboutTab(tabContent); break;
+            }
+        };
+
+        tabs.forEach(tab => {
+            const btn = tabNav.createEl('button', { cls: 'lemma-tab-button', text: tab.label });
+            btn.setAttribute('data-tab', tab.id);
+            btn.addEventListener('click', () => showTab(tab.id));
+        });
+
+        showTab('general');
+    }
+
+    private renderGeneralTab(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Database').setHeading();
+
         new Setting(containerEl)
             .setName('Use PouchDB (IndexedDB)')
             .setDesc('Use PouchDB for local storage instead of JSON files. Better performance for large collections (10k+ cards).')
@@ -1606,7 +1637,7 @@ class FSRSSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                     new Notice('Please reload Obsidian for this change to take effect');
                 }));
-        
+
         new Setting(containerEl)
             .setName('Migrate to PouchDB')
             .setDesc('Convert your existing data.json to PouchDB format (requires PouchDB to be enabled).')
@@ -1617,102 +1648,9 @@ class FSRSSettingsTab extends PluginSettingTab {
                 .onClick(async () => {
                     await this.migrateData();
                 }));
-        
-        // Sync
-        new Setting(containerEl).setName("Sync").setHeading();
-        
-        new Setting(containerEl)
-            .setName('Enable sync')
-            .setDesc('Sync your flashcard data with a CouchDB server')
-            .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.syncEnabled)
-                .onChange(async (value) => {
-                    this.plugin.settings.syncEnabled = value;
-                    await this.plugin.saveSettings();
 
-                    const pouchDB = this.plugin.dataManager.getPouchDB();
-                    if (value && pouchDB) {
-                        await this.setupSync();
-                    } else if (!value && pouchDB) {
-                        await pouchDB.stopSync();
-                        new Notice('Sync disabled');
-                    }
-                }));
-        
-        new Setting(containerEl)
-            .setName('CouchDB server URL')
-            .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/lemma)')
-            .addText(text => text
-                .setPlaceholder('https://your-server.com:5984/lemma')
-                .setValue(this.plugin.settings.syncUrl)
-                .onChange(async (value) => {
-                    this.plugin.settings.syncUrl = value.trim();
-                    await this.plugin.saveSettings();
-                }));
-        
-        new Setting(containerEl)
-            .setName('Database name')
-            .setDesc('The name of the database on your CouchDB server')
-            .addText(text => text
-                .setPlaceholder('Lemma')
-                .setValue(this.plugin.settings.syncDbName)
-                .onChange(async (value) => {
-                    this.plugin.settings.syncDbName = value.trim() || 'lemma';
-                    await this.plugin.saveSettings();
-                }));
-        
-        new Setting(containerEl)
-            .setName('Username')
-            .setDesc('CouchDB username for authentication')
-            .addText(text => text
-                .setPlaceholder('Admin')
-                .setValue(this.plugin.settings.syncUsername)
-                .onChange(async (value) => {
-                    this.plugin.settings.syncUsername = value;
-                    await this.plugin.saveSettings();
-                }));
-        
-        new Setting(containerEl)
-            .setName('Password')
-            .setDesc('CouchDB password (stored securely)')
-            .addText(text => {
-                text.setPlaceholder('Enter password')
-                    .setValue(this.plugin.settings.syncPassword)
-                    .onChange(async (value) => {
-                        this.plugin.settings.syncPassword = value;
-                        await this.plugin.saveSettings();
-                    });
-                text.inputEl.type = 'password';
-                return text;
-            });
+        new Setting(containerEl).setName('Deck tag').setHeading();
 
-        new Setting(containerEl)
-            .setName('Test sync')
-            .setDesc('Validate connection and run a one-time sync check from settings')
-            .setDisabled(!this.plugin.settings.usePouchDB)
-            .addButton((btn) => btn
-                .setButtonText('Run test')
-                .onClick(async () => {
-                    await this.testSyncConnection();
-                }));
-        
-        if (this.plugin.settings.syncEnabled && this.plugin.dataManager.getPouchDB()) {
-            new Setting(containerEl)
-                .setName('Sync status')
-                .setDesc('Check your current sync status')
-                .addButton(btn => btn
-                    .setButtonText('Check status')
-                    .onClick(async () => {
-                        const pouchDB = this.plugin.dataManager.getPouchDB();
-                        if (pouchDB) {
-                            const status = await pouchDB.getSyncStatus();
-                            const info = await pouchDB.getDatabaseInfo();
-                            const docCount = getDocCount(info);
-                            new Notice(`Sync status: ${status.enabled ? 'Active' : 'Inactive'}\nDocs: ${docCount}\nLast sync: ${status.lastSyncTime || 'Never'}`, 10000);
-                        }
-                    }));
-        }
-        
         new Setting(containerEl)
             .setName('Deck tag')
             .setDesc('The tag used to identify deck files (for example, "flashcards" for #flashcards).')
@@ -1767,6 +1705,114 @@ class FSRSSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        new Setting(containerEl).setName('Reset progress').setHeading();
+
+        new Setting(containerEl)
+            .setName('Reset all card progress')
+            .setDesc('Permanently delete all review history and start from scratch.')
+            .addButton(btn => btn
+                .setButtonText('Reset progress')
+                .setWarning()
+                .onClick(() => new ResetProgressModal(this.app, this.plugin).open()));
+    }
+
+    private renderSyncTab(containerEl: HTMLElement) {
+        new Setting(containerEl).setName('Sync').setHeading();
+
+        new Setting(containerEl)
+            .setName('Enable sync')
+            .setDesc('Sync your flashcard data with a CouchDB server')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.syncEnabled)
+                .onChange(async (value) => {
+                    this.plugin.settings.syncEnabled = value;
+                    await this.plugin.saveSettings();
+
+                    const pouchDB = this.plugin.dataManager.getPouchDB();
+                    if (value && pouchDB) {
+                        await this.setupSync();
+                    } else if (!value && pouchDB) {
+                        await pouchDB.stopSync();
+                        new Notice('Sync disabled');
+                    }
+                }));
+
+        new Setting(containerEl)
+            .setName('CouchDB server URL')
+            .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/lemma)')
+            .addText(text => text
+                .setPlaceholder('https://your-server.com:5984/lemma')
+                .setValue(this.plugin.settings.syncUrl)
+                .onChange(async (value) => {
+                    this.plugin.settings.syncUrl = value.trim();
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Database name')
+            .setDesc('The name of the database on your CouchDB server')
+            .addText(text => text
+                .setPlaceholder('Lemma')
+                .setValue(this.plugin.settings.syncDbName)
+                .onChange(async (value) => {
+                    this.plugin.settings.syncDbName = value.trim() || 'lemma';
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Username')
+            .setDesc('CouchDB username for authentication')
+            .addText(text => text
+                .setPlaceholder('Admin')
+                .setValue(this.plugin.settings.syncUsername)
+                .onChange(async (value) => {
+                    this.plugin.settings.syncUsername = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Password')
+            .setDesc('CouchDB password (stored securely)')
+            .addText(text => {
+                text.setPlaceholder('Enter password')
+                    .setValue(this.plugin.settings.syncPassword)
+                    .onChange(async (value) => {
+                        this.plugin.settings.syncPassword = value;
+                        await this.plugin.saveSettings();
+                    });
+                text.inputEl.type = 'password';
+                return text;
+            });
+
+        new Setting(containerEl)
+            .setName('Test sync')
+            .setDesc('Validate connection and run a one-time sync check from settings')
+            .setDisabled(!this.plugin.settings.usePouchDB)
+            .addButton((btn) => btn
+                .setButtonText('Run test')
+                .onClick(async () => {
+                    await this.testSyncConnection();
+                }));
+
+        if (this.plugin.settings.syncEnabled && this.plugin.dataManager.getPouchDB()) {
+            new Setting(containerEl)
+                .setName('Sync status')
+                .setDesc('Check your current sync status')
+                .addButton(btn => btn
+                    .setButtonText('Check status')
+                    .onClick(async () => {
+                        const pouchDB = this.plugin.dataManager.getPouchDB();
+                        if (pouchDB) {
+                            const status = await pouchDB.getSyncStatus();
+                            const info = await pouchDB.getDatabaseInfo();
+                            const docCount = getDocCount(info);
+                            new Notice(`Sync status: ${status.enabled ? 'Active' : 'Inactive'}\nDocs: ${docCount}\nLast sync: ${status.lastSyncTime || 'Never'}`, 10000);
+                        }
+                    }));
+        }
+    }
+
+    private renderAdvancedTab(containerEl: HTMLElement) {
         new Setting(containerEl).setName('FSRS parameters').setHeading();
         containerEl.createEl('p', {
             text: 'These settings control the scheduling algorithm. Change them only if you know what you are doing.',
@@ -1834,7 +1880,9 @@ class FSRSSettingsTab extends PluginSettingTab {
                 text.inputEl.rows = 5;
                 text.inputEl.addClass('fsrs-weights-textarea');
             });
+    }
 
+    private renderAboutTab(containerEl: HTMLElement) {
         new Setting(containerEl).setName('About').setHeading();
 
         new Setting(containerEl)
@@ -1850,7 +1898,7 @@ class FSRSSettingsTab extends PluginSettingTab {
                 .setButtonText('Report issue')
                 .onClick(() => window.open('https://github.com/sapienskid/Lemma/issues', '_blank')));
     }
-    
+
     async migrateData() {
         const pouchDB = this.plugin.dataManager.getPouchDB();
         if (!pouchDB) {

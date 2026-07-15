@@ -1247,5 +1247,41 @@
     }
 }
 
+/* ── Settings tab navigation ── */
+
+.lemma-tab-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--background-modifier-border);
+    padding-bottom: 0;
+}
+
+.lemma-tab-button {
+    background: transparent;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+}
+
+.lemma-tab-button:hover {
+    color: var(--text-normal);
+    background: var(--background-modifier-hover);
+}
+
+.lemma-tab-button.active {
+    color: var(--text-accent);
+    border-bottom-color: var(--text-accent);
+}
+
+.lemma-tab-content {
+    margin-top: 20px;
+}
 
 
