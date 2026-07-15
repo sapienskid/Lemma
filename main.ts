@@ -1889,14 +1889,57 @@ class FSRSSettingsTab extends PluginSettingTab {
             .setName('Lemma')
             .setDesc(`v${this.plugin.manifest.version} by Sapienskid — FSRS-based spaced repetition flashcards.`);
 
-        new Setting(containerEl)
-            .addButton(btn => btn
-                .setButtonText('Quick reference')
-                .setCta()
-                .onClick(() => new HelpModal(this.app, this.plugin).open()))
-            .addButton(btn => btn
-                .setButtonText('Report issue')
-                .onClick(() => window.open('https://github.com/sapienskid/Lemma/issues', '_blank')));
+        const reference = containerEl.createDiv({ cls: 'lemma-quick-reference' });
+        reference.createEl('p', { text: 'Quick reference', cls: 'lemma-quick-reference-title' });
+
+        this.renderRefSection(reference, 'Creating decks', [
+            `Add the tag #${this.plugin.settings.deckTag} to any note to make it a deck.`,
+            `Use frontmatter: tags: [${this.plugin.settings.deckTag}]`,
+            `Or inline: # My Note #${this.plugin.settings.deckTag}`,
+        ], []);
+
+        this.renderRefSection(reference, 'Card formats', [
+            'Basic: ---card--- ^id / Front / --- / Back',
+            'Cloze: ==c1::hidden text==',
+            'Use block IDs (^unique-id) to preserve review history when editing.',
+        ], []);
+
+        this.renderRefSection(reference, 'Review hotkeys', [], [
+            ['Space / Enter', 'Show answer'],
+            ['1', 'Again'],
+            ['2', 'Hard'],
+            ['3', 'Good'],
+            ['4', 'Easy'],
+            ['Esc', 'Exit review session'],
+        ]);
+
+        this.renderRefSection(reference, 'Tips', [
+            'Use Custom Study to filter by tags or card state.',
+            'Enable PouchDB for better performance with large collections.',
+            'Use Sync to keep your data across devices via CouchDB.',
+        ], []);
+    }
+
+    private renderRefSection(container: HTMLElement, title: string, paragraphs: string[], items: string[][] | string[]) {
+        const section = container.createDiv({ cls: 'lemma-ref-section' });
+        section.createEl('h4', { text: title });
+        for (const p of paragraphs) {
+            section.createEl('p', { text: p });
+        }
+        if (items.length > 0) {
+            if (Array.isArray(items[0])) {
+                const grid = section.createDiv({ cls: 'lemma-ref-grid' });
+                for (const [key, desc] of items as string[][]) {
+                    grid.createEl('span', { cls: 'lemma-ref-key', text: key });
+                    grid.createEl('span', { text: desc });
+                }
+            } else {
+                const ul = section.createEl('ul');
+                for (const item of items as string[]) {
+                    ul.createEl('li', { text: item });
+                }
+            }
+        }
     }
 
     async migrateData() {

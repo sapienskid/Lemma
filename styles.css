@@ -1284,4 +1284,70 @@
     margin-top: 20px;
 }
 
+/* ── Quick reference (inline in About tab) ── */
+
+.lemma-quick-reference {
+    margin-top: var(--size-4-4);
+    padding-top: var(--size-4-4);
+    border-top: 1px solid var(--background-modifier-border);
+}
+
+.lemma-quick-reference-title {
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-normal);
+    margin: 0 0 var(--size-4-3) 0;
+}
+
+.lemma-ref-section {
+    margin-bottom: var(--size-4-3);
+    padding: var(--size-4-2) var(--size-4-3);
+    background-color: var(--background-secondary);
+    border-radius: var(--radius-m);
+}
+
+.lemma-ref-section h4 {
+    font-size: var(--font-ui-small);
+    font-weight: 600;
+    color: var(--text-normal);
+    margin: 0 0 var(--size-4-1) 0;
+}
+
+.lemma-ref-section p {
+    font-size: var(--font-smaller);
+    color: var(--text-muted);
+    margin: var(--size-4-1) 0;
+    line-height: var(--line-height-tight);
+}
+
+.lemma-ref-section ul {
+    margin: var(--size-4-1) 0;
+    padding-left: var(--size-4-4);
+}
+
+.lemma-ref-section li {
+    font-size: var(--font-smaller);
+    color: var(--text-muted);
+    margin-bottom: var(--size-4-1);
+}
+
+.lemma-ref-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--size-4-1) var(--size-4-3);
+    font-size: var(--font-smaller);
+    margin-top: var(--size-4-1);
+}
+
+.lemma-ref-key {
+    display: inline-block;
+    padding: 1px 6px;
+    background-color: var(--background-modifier-form-field);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    font-family: var(--font-monospace);
+    font-size: var(--font-smallest);
+    color: var(--text-normal);
+}
+
 
