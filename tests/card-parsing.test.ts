@@ -209,6 +209,84 @@ Back only - no front
         });
     });
 
+    describe('Single-line cards (Q::A and Q:::A)', () => {
+        it('parses a basic single-line card (Q::A)', async () => {
+            const plugin = createMockPlugin();
+            const dm = new DataManager(plugin as never);
+            plugin.app.metadataCache.getFileCache = vi.fn().mockReturnValue({
+                tags: [{ tag: '#flashcards', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }],
+            });
+            plugin.app.vault.read = vi.fn().mockResolvedValue(`---
+tags: [flashcards]
+---
+
+What is the capital of France?::Paris
+`);
+            await dm.updateFile({ path: 'test-note.md', basename: 'test-note' } as never);
+            const cards = dm.getAllCards();
+            expect(cards).toHaveLength(1);
+            expect(cards[0].type).toBe('basic');
+            expect(cards[0].front).toBe('What is the capital of France?');
+            expect(cards[0].back).toBe('Paris');
+        });
+
+        it('parses a reversed single-line card (Q:::A)', async () => {
+            const plugin = createMockPlugin();
+            const dm = new DataManager(plugin as never);
+            plugin.app.metadataCache.getFileCache = vi.fn().mockReturnValue({
+                tags: [{ tag: '#flashcards', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }],
+            });
+            plugin.app.vault.read = vi.fn().mockResolvedValue(`---
+tags: [flashcards]
+---
+
+Capital of France:::Paris
+`);
+            await dm.updateFile({ path: 'test-note.md', basename: 'test-note' } as never);
+            const cards = dm.getAllCards();
+            expect(cards).toHaveLength(1);
+            expect(cards[0].type).toBe('reversed');
+            expect(cards[0].front).toBe('Paris');
+            expect(cards[0].back).toBe('Capital of France');
+        });
+
+        it('parses multiple single-line cards in one note', async () => {
+            const plugin = createMockPlugin();
+            const dm = new DataManager(plugin as never);
+            plugin.app.metadataCache.getFileCache = vi.fn().mockReturnValue({
+                tags: [{ tag: '#flashcards', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }],
+            });
+            plugin.app.vault.read = vi.fn().mockResolvedValue(`---
+tags: [flashcards]
+---
+
+Q1::A1
+Q2::A2
+Q3:::A3
+`);
+            await dm.updateFile({ path: 'test-note.md', basename: 'test-note' } as never);
+            expect(dm.getAllCards()).toHaveLength(3);
+        });
+
+        it('does not confuse colons in text for single-line cards', async () => {
+            const plugin = createMockPlugin();
+            const dm = new DataManager(plugin as never);
+            plugin.app.metadataCache.getFileCache = vi.fn().mockReturnValue({
+                tags: [{ tag: '#flashcards', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }],
+            });
+            plugin.app.vault.read = vi.fn().mockResolvedValue(`---
+tags: [flashcards]
+---
+
+This is not::A card
+`);
+            await dm.updateFile({ path: 'test-note.md', basename: 'test-note' } as never);
+            expect(dm.getAllCards()).toHaveLength(1);
+            expect(dm.getAllCards()[0].front).toBe('This is not');
+            expect(dm.getAllCards()[0].back).toBe('A card');
+        });
+    });
+
     describe('Cloze deletion cards', () => {
         it('parses a simple cloze card', async () => {
             const plugin = createMockPlugin();

@@ -210,9 +210,69 @@ export class DataManager {
         const content = await this.plugin.app.vault.read(file);
 
         this.parseBasicCards(content, file.path, deckId, newDeck);
+        this.parseSingleLineCards(content, file.path, deckId, newDeck);
         this.parseClozeCards(content, file.path, deckId, newDeck);
 
         if (newDeck.cardIds.size > 0) this.decks.set(deckId, newDeck);
+    }
+
+    private parseSingleLineCards(content: string, filePath: string, deckId: string, newDeck: Deck) {
+        const lines = content.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+
+            // Skip lines that are part of ---card--- blocks (inside frontmatter)
+            if (trimmed.startsWith('---card---') || trimmed === '---') continue;
+
+            // Skip lines that contain cloze syntax (==c#::)
+            if (/==c\d+::/.test(trimmed)) continue;
+
+            // Reversed single-line: Q:::A
+            const reversedMatch = trimmed.match(/^([^:].*?):::(.*)$/);
+            if (reversedMatch) {
+                const front = reversedMatch[1].trim();
+                const back = reversedMatch[2].trim();
+                if (!front || !back) continue;
+
+                const cardId = cyrb53hex(`${filePath}::${trimmed}::reversed`);
+                const card: Card = {
+                    id: cardId,
+                    deckId,
+                    filePath,
+                    type: 'reversed',
+                    originalText: trimmed,
+                    front: back,
+                    back: front,
+                    fsrsData: this.fsrsDataStore[cardId],
+                };
+                this.cards.set(cardId, card);
+                newDeck.cardIds.add(cardId);
+                continue;
+            }
+
+            // Basic single-line: Q::A
+            const basicMatch = trimmed.match(/^([^:].*?)::(?!:)(.*)$/);
+            if (basicMatch) {
+                const front = basicMatch[1].trim();
+                const back = basicMatch[2].trim();
+                if (!front || !back) continue;
+
+                const cardId = cyrb53hex(`${filePath}::${trimmed}`);
+                const card: Card = {
+                    id: cardId,
+                    deckId,
+                    filePath,
+                    type: 'basic',
+                    originalText: trimmed,
+                    front,
+                    back,
+                    fsrsData: this.fsrsDataStore[cardId],
+                };
+                this.cards.set(cardId, card);
+                newDeck.cardIds.add(cardId);
+            }
+        }
     }
 
     private parseBasicCards(content: string, filePath: string, deckId: string, newDeck: Deck) {

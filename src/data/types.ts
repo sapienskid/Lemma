@@ -20,7 +20,7 @@ export interface FSRSSettings {
     usePouchDB: boolean;
 }
 
-export type CardType = 'basic' | 'cloze';
+export type CardType = 'basic' | 'cloze' | 'reversed';
 
 export interface CardData {
     id: string;
