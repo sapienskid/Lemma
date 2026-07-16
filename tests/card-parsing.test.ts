@@ -285,6 +285,27 @@ This is not::A card
             expect(dm.getAllCards()[0].front).toBe('This is not');
             expect(dm.getAllCards()[0].back).toBe('A card');
         });
+
+        it('parses block ID from single-line cards', async () => {
+            const plugin = createMockPlugin();
+            const dm = new DataManager(plugin as never);
+            plugin.app.metadataCache.getFileCache = vi.fn().mockReturnValue({
+                tags: [{ tag: '#flashcards', position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }],
+            });
+            plugin.app.vault.read = vi.fn().mockResolvedValue(`---
+tags: [flashcards]
+---
+
+Capital of France::Paris ^fsrs-abc123
+`);
+            await dm.updateFile({ path: 'test-note.md', basename: 'test-note' } as never);
+            const cards = dm.getAllCards();
+            expect(cards).toHaveLength(1);
+            // Block ID should produce a stable ID with deckId::blockId format
+            expect(cards[0].id).toMatch(/^[a-f0-9]+::fsrs-abc123$/);
+            expect(cards[0].front).toBe('Capital of France');
+            expect(cards[0].back).toBe('Paris');
+        });
     });
 
     describe('Cloze deletion cards', () => {

@@ -54,6 +54,38 @@ class FSRSFlashcardsPlugin extends Plugin {
             },
         });
         this.addCommand({
+            id: 'add-single-line-card',
+            name: 'Add a single-line card',
+            editorCallback: (editor: Editor) => {
+                const blockId = generateBlockId();
+                const template = `\nQuestion::Answer ^${blockId}`;
+                const cursor = editor.getCursor();
+                editor.replaceRange(template, cursor);
+                editor.setCursor({ line: cursor.line + 1, ch: 0 });
+            },
+        });
+        this.addCommand({
+            id: 'add-reversed-card',
+            name: 'Add a reversed card',
+            editorCallback: (editor: Editor) => {
+                const blockId = generateBlockId();
+                const template = `\nQuestion:::Answer ^${blockId}`;
+                const cursor = editor.getCursor();
+                editor.replaceRange(template, cursor);
+                editor.setCursor({ line: cursor.line + 1, ch: 0 });
+            },
+        });
+        this.addCommand({
+            id: 'add-cloze-card',
+            name: 'Add a cloze card',
+            editorCallback: (editor: Editor) => {
+                const template = `\nThis is ==c1::a cloze deletion== in a sentence.`;
+                const cursor = editor.getCursor();
+                editor.replaceRange(template, cursor);
+                editor.setCursor({ line: cursor.line + 1, ch: 0 });
+            },
+        });
+        this.addCommand({
             id: 'open-fsrs-dashboard',
             name: 'Open dashboard',
             callback: () => {

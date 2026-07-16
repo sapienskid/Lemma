@@ -280,14 +280,21 @@ export class DataManager {
             // Skip lines that contain cloze syntax (==c#::)
             if (/==c\d+::/.test(trimmed)) continue;
 
+            // Extract optional block ID from end of line: ^identifier
+            const blockIdMatch = trimmed.match(/\s+\^([a-zA-Z0-9-]+)\s*$/);
+            const blockId = blockIdMatch ? blockIdMatch[1] : null;
+            const cardText = blockIdMatch ? trimmed.slice(0, blockIdMatch.index).trim() : trimmed;
+
             // Reversed single-line: Q:::A
-            const reversedMatch = trimmed.match(/^([^:].*?):::(.*)$/);
+            const reversedMatch = cardText.match(/^([^:].*?):::(.*)$/);
             if (reversedMatch) {
                 const front = reversedMatch[1].trim();
                 const back = reversedMatch[2].trim();
                 if (!front || !back) continue;
 
-                const cardId = cyrb53hex(`${filePath}::${trimmed}::reversed`);
+                const cardId = blockId
+                    ? `${deckId}::${blockId}`
+                    : cyrb53hex(`${filePath}::${trimmed}::reversed`);
                 const card: Card = {
                     id: cardId,
                     deckId,
@@ -305,13 +312,15 @@ export class DataManager {
             }
 
             // Basic single-line: Q::A
-            const basicMatch = trimmed.match(/^([^:].*?)::(?!:)(.*)$/);
+            const basicMatch = cardText.match(/^([^:].*?)::(?!:)(.*)$/);
             if (basicMatch) {
                 const front = basicMatch[1].trim();
                 const back = basicMatch[2].trim();
                 if (!front || !back) continue;
 
-                const cardId = cyrb53hex(`${filePath}::${trimmed}`);
+                const cardId = blockId
+                    ? `${deckId}::${blockId}`
+                    : cyrb53hex(`${filePath}::${trimmed}`);
                 const card: Card = {
                     id: cardId,
                     deckId,
