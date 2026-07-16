@@ -221,10 +221,35 @@ export class StatsModal extends Modal {
     private renderPerDeckChart(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
         if (stats.perDeckStats.length === 0) return;
 
+        const MAX_VISIBLE_DECKS = 15;
+        const sorted = [...stats.perDeckStats].sort((a, b) => (b.new + b.due + b.learning) - (a.new + a.due + a.learning));
+        const visible = sorted.slice(0, MAX_VISIBLE_DECKS);
+
+        let labels: string[];
+        let newData: number[];
+        let dueData: number[];
+        let learningData: number[];
+
+        if (sorted.length <= MAX_VISIBLE_DECKS) {
+            labels = visible.map(d => d.name.length > 20 ? d.name.slice(0, 20) + '…' : d.name);
+            newData = visible.map(d => d.new);
+            dueData = visible.map(d => d.due);
+            learningData = visible.map(d => d.learning);
+        } else {
+            const rest = sorted.slice(MAX_VISIBLE_DECKS);
+            labels = [
+                ...visible.map(d => d.name.length > 20 ? d.name.slice(0, 20) + '…' : d.name),
+                `Other (${rest.length})`,
+            ];
+            newData = [...visible.map(d => d.new), rest.reduce((s, d) => s + d.new, 0)];
+            dueData = [...visible.map(d => d.due), rest.reduce((s, d) => s + d.due, 0)];
+            learningData = [...visible.map(d => d.learning), rest.reduce((s, d) => s + d.learning, 0)];
+        }
+
         const card = this.contentEl.createDiv({ cls: 'fsrs-chart-card' });
         const header = card.createDiv({ cls: 'fsrs-chart-header' });
         setIcon(header.createDiv({ cls: 'fsrs-chart-icon' }), 'layers');
-        header.createEl('h3', { text: 'Per-deck breakdown' });
+        header.createEl('h3', { text: `Per-deck breakdown (${stats.perDeckStats.length} decks)` });
 
         const wrapper = card.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
         const canvas = wrapper.createEl('canvas');
@@ -232,19 +257,20 @@ export class StatsModal extends Modal {
         const chart = new Chart(canvas, {
             type: 'bar',
             data: {
-                labels: stats.perDeckStats.map(d => d.name.length > 20 ? d.name.slice(0, 20) + '…' : d.name),
+                labels,
                 datasets: [
-                    { label: 'New', data: stats.perDeckStats.map(d => d.new), backgroundColor: 'var(--color-red)', borderRadius: 2 },
-                    { label: 'Learning', data: stats.perDeckStats.map(d => d.learning), backgroundColor: 'var(--color-orange)', borderRadius: 2 },
-                    { label: 'Due', data: stats.perDeckStats.map(d => d.due), backgroundColor: 'var(--interactive-accent)', borderRadius: 2 },
+                    { label: 'New', data: newData, backgroundColor: 'var(--color-red)', borderRadius: 2 },
+                    { label: 'Learning', data: learningData, backgroundColor: 'var(--color-orange)', borderRadius: 2 },
+                    { label: 'Due', data: dueData, backgroundColor: 'var(--interactive-accent)', borderRadius: 2 },
                 ],
             },
             options: {
+                indexAxis: labels.length > 8 ? 'y' : 'x',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { stacked: true, grid: { display: false } },
-                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'var(--background-modifier-border)' } },
+                    x: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'var(--background-modifier-border)' } },
+                    y: { stacked: true, grid: { display: false } },
                 },
                 plugins: {
                     legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
