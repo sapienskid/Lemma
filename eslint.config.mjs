@@ -36,6 +36,8 @@ export default defineConfig([
 			"esbuild.config.mjs",
 			"version-bump.mjs",
 			"deploy.mjs",
+			"vitest.config.ts",
+			"tests/**",
 		],
 	},
 ]);
