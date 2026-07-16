@@ -468,6 +468,10 @@ export class DataManager {
         return Array.from(this.cards.values());
     }
 
+    getReviewHistory(): ReviewLog[] {
+        return this.reviewHistory;
+    }
+
     getCardsByDeck(deckId: string): Card[] {
         const deck = this.decks.get(deckId);
         if (!deck) return [];

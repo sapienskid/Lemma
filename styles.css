@@ -1382,6 +1382,57 @@
 
 /* ── Card context breadcrumb ── */
 
+.fsrs-optimizer-modal .modal {
+    max-width: 600px;
+}
+
+.fsrs-optimizer-overview {
+    margin-bottom: var(--size-4-4);
+}
+
+.fsrs-optimizer-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--size-4-2) 0;
+    font-size: var(--font-smaller);
+}
+
+.fsrs-optimizer-table th,
+.fsrs-optimizer-table td {
+    padding: var(--size-4-1) var(--size-4-2);
+    border: 1px solid var(--background-modifier-border);
+    text-align: left;
+}
+
+.fsrs-optimizer-table th {
+    background: var(--background-modifier-hover);
+    font-weight: var(--bold-weight);
+}
+
+.fsrs-optimizer-status {
+    padding: var(--size-4-2);
+    margin: var(--size-4-2) 0;
+    border-radius: var(--radius-s);
+}
+
+.fsrs-optimizer-status-running {
+    background: var(--background-modifier-hover);
+    color: var(--text-accent);
+}
+
+.fsrs-optimizer-positive {
+    color: var(--color-green);
+    font-weight: var(--bold-weight);
+}
+
+.fsrs-optimizer-result {
+    margin-top: var(--size-4-4);
+}
+
+.fsrs-optimizer-actions {
+    margin-top: var(--size-4-4);
+}
+
 .fsrs-card-context-hidden {
     display: none;
 }

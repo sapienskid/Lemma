@@ -304,6 +304,18 @@ export class FSRSSettingsTab extends PluginSettingTab {
                 text.inputEl.rows = 5;
                 text.inputEl.addClass('fsrs-weights-textarea');
             });
+
+        new Setting(containerEl).setName('Optimization').setHeading();
+        new Setting(containerEl)
+            .setName('Optimize FSRS weights')
+            .setDesc('Automatically tune FSRS weights to your review history for more accurate scheduling.')
+            .addButton(btn => btn
+                .setButtonText('Run optimizer')
+                .setCta()
+                .onClick(async () => {
+                    const { OptimizerModal } = await import('./OptimizerModal');
+                    new OptimizerModal(this.app, this.plugin).open();
+                }));
     }
 
     private renderAboutTab(containerEl: HTMLElement) {

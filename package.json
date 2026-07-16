@@ -59,6 +59,7 @@
     "@types/pouchdb": "^6.4.2",
     "chart.js": "^4.5.1",
     "events": "^3.3.0",
+    "fsrs-browser": "^6.6.0",
     "pouchdb-browser": "^9.0.0",
     "ts-fsrs": "^4.1.1"
   },

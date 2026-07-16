@@ -20,6 +20,9 @@ importers:
       events:
         specifier: ^3.3.0
         version: 3.3.0
+      fsrs-browser:
+        specifier: ^6.6.0
+        version: 6.6.0
       pouchdb-browser:
         specifier: ^9.0.0
         version: 9.0.0
@@ -1051,6 +1054,9 @@ packages:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
+
+  fsrs-browser@6.6.0:
+    resolution: {integrity: sha512-Q79mC7dZCku1zqpEnO041pxlAAYoldTtxYg8zg8SbmtKsbD5xOokaLdiJSv99aqDIplySsfJnrYn/yyQhE4KhA==}
 
   function-bind@1.1.2:
     resolution: {integrity: sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA==}
@@ -3134,6 +3140,8 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
+
+  fsrs-browser@6.6.0: {}
 
   function-bind@1.1.2: {}
 
