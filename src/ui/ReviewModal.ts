@@ -26,6 +26,7 @@ export class ReviewModal extends Modal {
     private gestureCurrentX = 0;
     private gestureCurrentY = 0;
     private isGesturing = false;
+    private boundHandlers: Array<{ target: EventTarget; type: string; handler: EventListener }> = [];
 
     constructor(app: App, plugin: FSRSFlashcardsPlugin, queue: Card[], deckName?: string) {
         super(app);
@@ -47,6 +48,10 @@ export class ReviewModal extends Modal {
     }
 
     onClose() {
+        for (const { target, type, handler } of this.boundHandlers) {
+            target.removeEventListener(type, handler);
+        }
+        this.boundHandlers = [];
         this.renderComponent.unload();
         this.contentEl.empty();
         this.plugin.refreshDashboardView();
@@ -103,10 +108,14 @@ export class ReviewModal extends Modal {
         this.controlsContainer = bottomControlsContainer.createDiv({ cls: 'fsrs-review-controls' });
         this.controlsContainer.hide();
 
-        this.cardContainer.addEventListener('pointerdown', (e: PointerEvent) => this.onGestureStart(e));
-        this.cardContainer.addEventListener('pointermove', (e: PointerEvent) => this.onGestureMove(e));
-        this.cardContainer.addEventListener('pointerup', (e: PointerEvent) => this.onGestureEnd(e));
-        this.cardContainer.addEventListener('pointerleave', (e: PointerEvent) => this.onGestureEnd(e));
+        const addHandler = (target: EventTarget, type: string, handler: EventListener) => {
+            target.addEventListener(type, handler);
+            this.boundHandlers.push({ target, type, handler });
+        };
+        addHandler(this.cardContainer, 'pointerdown', (e: Event) => this.onGestureStart(e as PointerEvent));
+        addHandler(this.cardContainer, 'pointermove', (e: Event) => this.onGestureMove(e as PointerEvent));
+        addHandler(this.cardContainer, 'pointerup', (e: Event) => this.onGestureEnd(e as PointerEvent));
+        addHandler(this.cardContainer, 'pointerleave', (e: Event) => this.onGestureEnd(e as PointerEvent));
         this.cardContainer.addClass('fsrs-no-touch-action');
     }
 

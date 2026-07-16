@@ -1,7 +1,7 @@
 import { FSRS, Rating, State } from 'ts-fsrs';
 import { Notice, TFile } from 'obsidian';
 import type { Card, Deck, FSRSData, FSRSParameters, NoteReviewData, PluginData, ReviewLog } from './types';
-import { isRecord, toStringArray, cyrb53hex, getDocsWritten, getErrorMessage, isLikelyCorsOrNetworkErrorMessage, sanitizeCredentialForUrl } from './constants';
+import { isRecord, toStringArray, cyrb53hex, getDocsWritten, getErrorMessage, isLikelyCorsOrNetworkErrorMessage, buildAuthenticatedUrl } from './constants';
 import { PouchDBManager } from '../database/PouchDBManager';
 
 type FSRSFlashcardsPlugin = import('../plugin/main').FSRSFlashcardsPlugin;
@@ -35,7 +35,7 @@ export class DataManager {
             && this.plugin.settings.syncUrl
             && this.pouchDB) {
             try {
-                const syncUrl = this.buildAuthenticatedUrl(
+                const syncUrl = buildAuthenticatedUrl(
                     this.plugin.settings.syncUrl,
                     this.plugin.settings.syncDbName,
                     this.plugin.settings.syncUsername,
@@ -80,35 +80,6 @@ export class DataManager {
                 console.error('Failed to initialize sync:', error);
                 new Notice(`Sync initialization failed: ${getErrorMessage(error)}`);
             }
-        }
-    }
-
-    private buildAuthenticatedUrl(url: string, dbName: string, username: string, password: string): string {
-        try {
-            const urlObj = new URL(url.trim());
-            const cleanDbName = dbName.trim().replace(/^\/+|\/+$/g, '');
-            const pathSegments = urlObj.pathname.split('/').filter(Boolean);
-
-            if (cleanDbName) {
-                const lastSegment = pathSegments[pathSegments.length - 1];
-                if (lastSegment !== cleanDbName) {
-                    pathSegments.push(cleanDbName);
-                }
-            }
-
-            urlObj.pathname = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
-
-            if (username) {
-                urlObj.username = sanitizeCredentialForUrl(username);
-            }
-            if (password) {
-                urlObj.password = sanitizeCredentialForUrl(password);
-            }
-
-            return urlObj.toString();
-        } catch (error) {
-            console.error('Failed to build authenticated URL:', error);
-            return url;
         }
     }
 
@@ -193,7 +164,7 @@ export class DataManager {
         console.debug(`FSRS: Index complete. Found ${this.decks.size} decks and ${this.cards.size} cards.`);
     }
 
-    private getDeckId(path: string): string {
+    getDeckId(path: string): string {
         return cyrb53hex(path);
     }
 
@@ -500,30 +471,31 @@ export class DataManager {
             .map(id => this.cards.get(id))
             .filter((card): card is Card => card !== undefined && card !== null && card.deckId === deckId);
 
-        const alreadyReviewedToday = new Set(
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+
+        const alreadyReviewedTodaySet = new Set(
             this.reviewHistory
-                .filter(log => {
-                    const todayStart = new Date();
-                    todayStart.setHours(0, 0, 0, 0);
-                    return log.timestamp >= todayStart.getTime();
-                })
+                .filter(log => log.timestamp >= todayStart.getTime())
                 .map(log => log.cardId)
         );
+
+        const everReviewedSet = new Set(this.reviewHistory.map(log => log.cardId));
 
         const dueCards = allCards.filter(c =>
             c.fsrsData && c.fsrsData.state !== State.New && c.fsrsData.due <= now
         )
-            .filter(c => !alreadyReviewedToday.has(c.id))
+            .filter(c => !alreadyReviewedTodaySet.has(c.id))
             .sort((a, b) => a.fsrsData!.due.getTime() - b.fsrsData!.due.getTime());
 
         const newCards = allCards.filter(c =>
             !c.fsrsData || c.fsrsData.state === State.New
         )
-            .filter(c => !alreadyReviewedToday.has(c.id));
+            .filter(c => !alreadyReviewedTodaySet.has(c.id));
 
         const reviewsRemaining = Math.max(0, this.plugin.settings.reviewsPerDay - this.getReviewedTodayCount(deckId));
         const newCardsRemaining = Math.max(0, this.plugin.settings.newCardsPerDay - newCards.filter(c =>
-            this.reviewHistory.some(log => log.cardId === c.id)
+            everReviewedSet.has(c.id)
         ).length);
 
         return [

@@ -69,6 +69,35 @@ export function sanitizeCredentialForUrl(value: string): string {
     return value.replace(/%(?![0-9a-fA-F]{2})/g, '%25');
 }
 
+export function buildAuthenticatedUrl(url: string, dbName: string, username: string, password: string): string {
+    try {
+        const urlObj = new URL(url.trim());
+        const cleanDbName = dbName.trim().replace(/^\/+|\/+$/g, '');
+        const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+
+        if (cleanDbName) {
+            const lastSegment = pathSegments[pathSegments.length - 1];
+            if (lastSegment !== cleanDbName) {
+                pathSegments.push(cleanDbName);
+            }
+        }
+
+        urlObj.pathname = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
+
+        if (username) {
+            urlObj.username = sanitizeCredentialForUrl(username);
+        }
+        if (password) {
+            urlObj.password = sanitizeCredentialForUrl(password);
+        }
+
+        return urlObj.toString();
+    } catch (error) {
+        console.error('Failed to build authenticated URL:', error);
+        return url;
+    }
+}
+
 export function generateBlockId(length: number = 6): string {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';

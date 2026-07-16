@@ -25,7 +25,6 @@ export class StatsModal extends Modal {
         this.renderRetentionCurve(stats);
         this.renderChartsRow(stats);
         this.renderHeatmap(stats);
-        this.renderIntervalHistogram(stats);
         this.renderPerDeckChart(stats);
         this.renderActivityForecast(stats);
     }
@@ -212,10 +211,6 @@ export class StatsModal extends Modal {
                 });
             }
         }
-    }
-
-    private renderIntervalHistogram(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
-        // Rendered in renderChartsRow as half-width
     }
 
     private renderPerDeckChart(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {

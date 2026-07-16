@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { generatorParameters } from 'ts-fsrs';
-import { sanitizeCredentialForUrl, getDocCount, getErrorMessage } from '../data/constants';
+import { getDocCount, getErrorMessage, buildAuthenticatedUrl } from '../data/constants';
 import { DataMigration, type LegacyPluginData } from '../database/DataMigration';
 import { ResetProgressModal } from './ResetProgressModal';
 
@@ -441,7 +441,7 @@ export class FSRSSettingsTab extends PluginSettingTab {
 
         try {
             new Notice('Setting up sync...');
-            const syncUrl = this.buildAuthenticatedUrl(
+            const syncUrl = buildAuthenticatedUrl(
                 this.plugin.settings.syncUrl,
                 this.plugin.settings.syncDbName,
                 this.plugin.settings.syncUsername,
@@ -471,7 +471,7 @@ export class FSRSSettingsTab extends PluginSettingTab {
 
         try {
             new Notice('Testing sync connection...');
-            const syncUrl = this.buildAuthenticatedUrl(
+            const syncUrl = buildAuthenticatedUrl(
                 this.plugin.settings.syncUrl,
                 this.plugin.settings.syncDbName,
                 this.plugin.settings.syncUsername,
@@ -499,32 +499,4 @@ export class FSRSSettingsTab extends PluginSettingTab {
         }
     }
 
-    private buildAuthenticatedUrl(url: string, dbName: string, username: string, password: string): string {
-        try {
-            const urlObj = new URL(url.trim());
-            const cleanDbName = dbName.trim().replace(/^\/+|\/+$/g, '');
-            const pathSegments = urlObj.pathname.split('/').filter(Boolean);
-
-            if (cleanDbName) {
-                const lastSegment = pathSegments[pathSegments.length - 1];
-                if (lastSegment !== cleanDbName) {
-                    pathSegments.push(cleanDbName);
-                }
-            }
-
-            urlObj.pathname = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
-
-            if (username) {
-                urlObj.username = sanitizeCredentialForUrl(username);
-            }
-            if (password) {
-                urlObj.password = sanitizeCredentialForUrl(password);
-            }
-
-            return urlObj.toString();
-        } catch (error) {
-            console.error('Failed to build authenticated URL:', error);
-            return url;
-        }
-    }
 }

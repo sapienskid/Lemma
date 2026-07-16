@@ -12,7 +12,6 @@ class FSRSFlashcardsPlugin extends Plugin {
 
     async onload() {
         console.debug('Loading Lemma plugin');
-        this.addStyle();
         await this.loadSettings();
         this.dataManager = new DataManager(this);
 
@@ -155,7 +154,11 @@ class FSRSFlashcardsPlugin extends Plugin {
             this.refreshDashboardView();
         }, 500, true);
         const updateAndRefresh = async (file: TFile) => {
-            await this.dataManager.updateFile(file);
+            try {
+                await this.dataManager.updateFile(file);
+            } catch (e) {
+                console.error('Failed to update file:', e);
+            }
             debouncedRefresh();
         };
         this.registerEvent(this.app.vault.on('create', (file) => {
@@ -170,9 +173,8 @@ class FSRSFlashcardsPlugin extends Plugin {
         }));
         this.registerEvent(this.app.vault.on('delete', (file) => {
             if (file instanceof TFile) {
-                const deckId = this.dataManager['getDeckId'](file.path);
+                const deckId = this.dataManager.getDeckId(file.path);
                 this.dataManager.removeDeck(deckId);
-                void this.dataManager.updateFile(file);
                 debouncedRefresh();
             }
         }));
@@ -180,6 +182,8 @@ class FSRSFlashcardsPlugin extends Plugin {
             if (file instanceof TFile) {
                 void this.dataManager.renameDeck(file, oldPath).then(() => {
                     debouncedRefresh();
+                }).catch((e: unknown) => {
+                    console.error('Failed to rename deck:', e);
                 });
             }
         }));
@@ -191,14 +195,6 @@ class FSRSFlashcardsPlugin extends Plugin {
         void this.dataManager.stopSync().catch((error: unknown) => {
             console.error('Failed to stop sync during unload:', error);
         });
-
-        this.removeStyle();
-    }
-
-    addStyle() {
-    }
-
-    removeStyle() {
     }
 
     async loadSettings() {
@@ -208,11 +204,10 @@ class FSRSFlashcardsPlugin extends Plugin {
     }
 
     async saveSettings() {
-        const data = (await this.loadData()) as PluginData | null;
         await this.saveData({
             settings: this.settings,
-            cardData: data?.cardData || {},
-            reviewHistory: data?.reviewHistory || [],
+            cardData: this.dataManager['fsrsDataStore'] || {},
+            reviewHistory: this.dataManager['reviewHistory'] || [],
         });
     }
 

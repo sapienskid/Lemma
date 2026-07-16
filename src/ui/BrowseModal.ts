@@ -95,6 +95,9 @@ export class BrowseModal extends Modal {
     private handleKeyPress(evt: KeyboardEvent) {
         evt.preventDefault();
         switch (evt.key) {
+            case 'Escape':
+                this.close();
+                break;
             case 'ArrowLeft':
                 this.showPrevCard();
                 break;

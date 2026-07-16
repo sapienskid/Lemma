@@ -93,9 +93,12 @@ export class DashboardView extends ItemView {
         refreshBtn.addEventListener('click', () => {
             void (async () => {
                 refreshBtn.addClass('is-spinning');
-                await this.plugin.dataManager.buildIndex();
-                this.render();
-                refreshBtn.removeClass('is-spinning');
+                try {
+                    await this.plugin.dataManager.buildIndex();
+                    this.render();
+                } finally {
+                    refreshBtn.removeClass('is-spinning');
+                }
             })();
         });
 

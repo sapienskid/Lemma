@@ -62,6 +62,8 @@ export interface SyncMetaDoc {
     syncEnabled: boolean;
 }
 
+import { getErrorMessage } from '../data/constants';
+
 function getErrorStatus(error: unknown): number | undefined {
     if (typeof error !== 'object' || error === null || !('status' in error)) {
         return undefined;
@@ -69,19 +71,6 @@ function getErrorStatus(error: unknown): number | undefined {
 
     const status = error.status;
     return typeof status === 'number' ? status : undefined;
-}
-
-function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-
-    if (typeof error === 'object' && error !== null && 'message' in error) {
-        const message = error.message;
-        return typeof message === 'string' ? message : 'Unknown error';
-    }
-
-    return String(error);
 }
 
 function toError(error: unknown): Error {
@@ -453,17 +442,10 @@ export class PouchDBManager {
                     return;
                 }
 
-                // Handle retry limit
-                // If err is present, it means we are pausing due to an error (and likely retrying)
-                // Even if err is undefined, if we are in a retry loop, we might want to count it, 
-                // but usually undefined means "idle". However, in your case, it seems to be part of the loop.
-                // We will count it if we see rapid pauses without active state in between, but simpler is to just count non-idle pauses.
-                // Since the logs show "Sync paused: undefined" during the loop, we should be careful.
-                // But let's assume any pause that isn't "idle" is a retry wait.
-                // PouchDB emits paused with err when it's an error.
-                
-                // If we are seeing 404s in console but err is undefined here, it's tricky.
-                // Let's increment retry count.
+                // Only count pauses with actual errors toward retry limit
+                // PouchDB emits paused with err=undefined for idle pauses (no changes to sync)
+                if (!err) return;
+
                 this.retryCount++;
                 if (this.retryCount > this.maxRetries) {
                      console.error(`Max retries (${this.maxRetries}) reached. Stopping sync.`);

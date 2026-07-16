@@ -74,7 +74,7 @@ function nextForgetStability(d: number, s: number, r: number, w: number[]): numb
 
 function nextShortTermStability(s: number, g: number, w: number[]): number {
     // g is rating index: 0=Again, 1=Hard, 2=Good, 3=Easy
-    const sinc = Math.exp(w[17] * (g - 3 + w[18])) * s ** -w[19];
+    const sinc = Math.exp(w[17] * (g - 3 + w[18]));
     const clampedSinc = g >= 3 ? Math.max(sinc, 1) : sinc;
     return s * clampedSinc;
 }
