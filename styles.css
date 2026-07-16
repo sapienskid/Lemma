@@ -1433,6 +1433,48 @@
     margin-top: var(--size-4-4);
 }
 
+/* ── Swipe gestures ── */
+
+.fsrs-review-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    user-select: none;
+    transform: translate(var(--fsrs-swipe-dx, 0px), var(--fsrs-swipe-dy, 0px)) rotate(var(--fsrs-swipe-rot, 0deg));
+}
+
+.fsrs-no-touch-action {
+    touch-action: none;
+}
+
+.fsrs-swipe-left {
+    box-shadow: -8px 0 20px rgba(239, 68, 68, 0.2);
+}
+
+.fsrs-swipe-right {
+    box-shadow: 8px 0 20px rgba(34, 197, 94, 0.2);
+}
+
+.fsrs-swipe-up {
+    box-shadow: 0 -8px 20px rgba(59, 130, 246, 0.2);
+}
+
+.fsrs-swipe-down {
+    box-shadow: 0 8px 20px rgba(234, 179, 8, 0.2);
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .fsrs-review-controls {
+        padding-bottom: max(var(--size-4-4), calc(env(safe-area-inset-bottom) + 16px));
+    }
+
+    .fsrs-rating-again,
+    .fsrs-rating-hard,
+    .fsrs-rating-good,
+    .fsrs-rating-easy {
+        min-height: 48px;
+        padding: var(--size-4-2) var(--size-4-3);
+    }
+}
+
 .fsrs-card-context-hidden {
     display: none;
 }

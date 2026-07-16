@@ -4,6 +4,9 @@ import type { Card } from '../data/types';
 
 type FSRSFlashcardsPlugin = import('../plugin/main').FSRSFlashcardsPlugin;
 
+type SwipeDirection = 'left' | 'right' | 'up' | 'down' | null;
+const SWIPE_THRESHOLD = 60;
+
 export class ReviewModal extends Modal {
     private plugin: FSRSFlashcardsPlugin;
     private queue: Card[];
@@ -17,6 +20,12 @@ export class ReviewModal extends Modal {
     private controlsContainer: HTMLElement;
     private showAnswerButton: ButtonComponent;
     private renderComponent: Component = new Component();
+
+    private gestureStartX = 0;
+    private gestureStartY = 0;
+    private gestureCurrentX = 0;
+    private gestureCurrentY = 0;
+    private isGesturing = false;
 
     constructor(app: App, plugin: FSRSFlashcardsPlugin, queue: Card[], deckName?: string) {
         super(app);
@@ -93,6 +102,78 @@ export class ReviewModal extends Modal {
 
         this.controlsContainer = bottomControlsContainer.createDiv({ cls: 'fsrs-review-controls' });
         this.controlsContainer.hide();
+
+        this.cardContainer.addEventListener('pointerdown', (e: PointerEvent) => this.onGestureStart(e));
+        this.cardContainer.addEventListener('pointermove', (e: PointerEvent) => this.onGestureMove(e));
+        this.cardContainer.addEventListener('pointerup', (e: PointerEvent) => this.onGestureEnd(e));
+        this.cardContainer.addEventListener('pointerleave', (e: PointerEvent) => this.onGestureEnd(e));
+        this.cardContainer.addClass('fsrs-no-touch-action');
+    }
+
+    private onGestureStart(e: PointerEvent) {
+        this.isGesturing = true;
+        this.gestureStartX = e.clientX;
+        this.gestureStartY = e.clientY;
+        this.gestureCurrentX = e.clientX;
+        this.gestureCurrentY = e.clientY;
+    }
+
+    private onGestureMove(e: PointerEvent) {
+        if (!this.isGesturing) return;
+        this.gestureCurrentX = e.clientX;
+        this.gestureCurrentY = e.clientY;
+
+        const dx = this.gestureCurrentX - this.gestureStartX;
+        const dy = this.gestureCurrentY - this.gestureStartY;
+
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            this.cardContainer.setCssProps({
+                '--fsrs-swipe-dx': `${dx * 0.4}px`,
+                '--fsrs-swipe-dy': `${dy * 0.2}px`,
+                '--fsrs-swipe-rot': `${dx * 0.02}deg`,
+            });
+            const direction = this.getSwipeDirection(dx, dy);
+            this.cardContainer.removeClass('fsrs-swipe-left', 'fsrs-swipe-right', 'fsrs-swipe-up', 'fsrs-swipe-down');
+            if (direction) {
+                this.cardContainer.addClass(`fsrs-swipe-${direction}`);
+            }
+        }
+    }
+
+    private onGestureEnd(_e: PointerEvent) {
+        if (!this.isGesturing) return;
+        this.isGesturing = false;
+
+        const dx = this.gestureCurrentX - this.gestureStartX;
+        const dy = this.gestureCurrentY - this.gestureStartY;
+        const direction = this.getSwipeDirection(dx, dy);
+
+        this.cardContainer.setCssProps({ '--fsrs-swipe-dx': '', '--fsrs-swipe-dy': '', '--fsrs-swipe-rot': '' });
+        this.cardContainer.removeClass('fsrs-swipe-left', 'fsrs-swipe-right', 'fsrs-swipe-up', 'fsrs-swipe-down');
+
+        if (!direction || this.state !== 'answer') return;
+
+        const ratingMap: Record<string, Rating> = {
+            left: Rating.Again,
+            down: Rating.Hard,
+            right: Rating.Good,
+            up: Rating.Easy,
+        };
+
+        const rating = ratingMap[direction];
+        if (rating !== undefined) {
+            this.handleRating(rating);
+        }
+    }
+
+    private getSwipeDirection(dx: number, dy: number): SwipeDirection {
+        if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return null;
+
+        if (Math.abs(dx) > Math.abs(dy)) {
+            return dx < 0 ? 'left' : 'right';
+        } else {
+            return dy < 0 ? 'up' : 'down';
+        }
     }
 
     private createControlButtons() {
