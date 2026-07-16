@@ -1350,4 +1350,34 @@
     color: var(--text-normal);
 }
 
+/* ── Note Review Modal ── */
+
+.fsrs-note-review-header {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-2);
+    margin-bottom: var(--size-4-3);
+    padding-bottom: var(--size-4-2);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.fsrs-note-review-icon {
+    display: flex;
+    align-items: center;
+}
+
+.fsrs-note-review-title {
+    font-weight: var(--bold-weight);
+    font-size: var(--font-ui-medium);
+}
+
+.fsrs-note-preview {
+    max-height: 300px;
+    overflow: hidden;
+}
+
+.fsrs-note-rating-section {
+    margin-top: var(--size-4-4);
+}
+
 

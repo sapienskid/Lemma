@@ -1,6 +1,6 @@
 import { FSRS, Rating, State } from 'ts-fsrs';
 import { Notice, TFile } from 'obsidian';
-import type { Card, Deck, FSRSData, FSRSParameters, PluginData, ReviewLog } from './types';
+import type { Card, Deck, FSRSData, FSRSParameters, NoteReviewData, PluginData, ReviewLog } from './types';
 import { isRecord, toStringArray, cyrb53hex, getDocsWritten, getErrorMessage, isLikelyCorsOrNetworkErrorMessage, sanitizeCredentialForUrl } from './constants';
 import { PouchDBManager } from '../database/PouchDBManager';
 
@@ -12,6 +12,7 @@ export class DataManager {
     private decks: Map<string, Deck> = new Map();
     private cards: Map<string, Card> = new Map();
     private fsrsDataStore: Record<string, FSRSData> = {};
+    private noteReviews: Map<string, NoteReviewData> = new Map();
     private reviewHistory: ReviewLog[] = [];
     private pouchDB: PouchDBManager | null = null;
     private migrationCompleted: boolean = false;
@@ -184,6 +185,7 @@ export class DataManager {
         console.debug('FSRS: Building index...');
         this.decks.clear();
         this.cards.clear();
+        this.noteReviews.clear();
         for (const file of this.plugin.app.vault.getMarkdownFiles()) {
             await this.updateFile(file);
         }
@@ -199,21 +201,38 @@ export class DataManager {
         const deckId = this.getDeckId(file.path);
         const cache = this.plugin.app.metadataCache.getFileCache(file);
         const deckTag = `#${this.plugin.settings.deckTag}`;
+        const reviewTag = '#review';
         const frontmatter = isRecord(cache?.frontmatter) ? cache.frontmatter : null;
         const frontmatterTags = frontmatter ? toStringArray(frontmatter.tags) : [];
-        const isDeck = (cache?.tags?.some((tag: { tag: string }) => tag.tag === deckTag) ?? false) || frontmatterTags.includes(this.plugin.settings.deckTag);
+        const allTags = (cache?.tags ?? []).map(t => t.tag.toLowerCase());
+        const allFrontmatterTags = frontmatterTags.map(t => `#${t.toLowerCase()}`);
+
+        // Check for deck tag
+        const isDeck = allTags.includes(deckTag) || allFrontmatterTags.includes(deckTag);
         this.removeDeck(deckId, false);
-        if (!isDeck) return;
+        if (isDeck) {
+            const title = frontmatter && typeof frontmatter.title === 'string' ? frontmatter.title : file.basename;
+            const newDeck: Deck = { id: deckId, title, filePath: file.path, cardIds: new Set(), stats: { new: 0, due: 0, learning: 0 } };
+            const content = await this.plugin.app.vault.read(file);
 
-        const title = frontmatter && typeof frontmatter.title === 'string' ? frontmatter.title : file.basename;
-        const newDeck: Deck = { id: deckId, title, filePath: file.path, cardIds: new Set(), stats: { new: 0, due: 0, learning: 0 } };
-        const content = await this.plugin.app.vault.read(file);
+            this.parseBasicCards(content, file.path, deckId, newDeck);
+            this.parseSingleLineCards(content, file.path, deckId, newDeck);
+            this.parseClozeCards(content, file.path, deckId, newDeck);
 
-        this.parseBasicCards(content, file.path, deckId, newDeck);
-        this.parseSingleLineCards(content, file.path, deckId, newDeck);
-        this.parseClozeCards(content, file.path, deckId, newDeck);
+            if (newDeck.cardIds.size > 0) this.decks.set(deckId, newDeck);
+        }
 
-        if (newDeck.cardIds.size > 0) this.decks.set(deckId, newDeck);
+        // Check for note review tag
+        const isReviewNote = allTags.includes(reviewTag) || allFrontmatterTags.includes(reviewTag);
+        if (isReviewNote) {
+            const existing = this.noteReviews.get(file.path);
+            this.noteReviews.set(file.path, {
+                filePath: file.path,
+                fsrsData: existing?.fsrsData || this.fsrsDataStore[`note::${file.path}`],
+            });
+        } else {
+            this.noteReviews.delete(file.path);
+        }
     }
 
     private parseSingleLineCards(content: string, filePath: string, deckId: string, newDeck: Deck) {
@@ -565,5 +584,52 @@ export class DataManager {
         this.recalculateAllDeckStats();
 
         console.debug('All progress has been reset');
+    }
+
+    getDueNotes(): NoteReviewData[] {
+        const now = new Date();
+        return Array.from(this.noteReviews.values())
+            .filter(n => {
+                const data = n.fsrsData;
+                return !data || data.state === State.New || data.due <= now;
+            })
+            .sort((a, b) => {
+                const aDue = a.fsrsData?.due?.getTime() ?? 0;
+                const bDue = b.fsrsData?.due?.getTime() ?? 0;
+                return aDue - bDue;
+            });
+    }
+
+    getAllReviewNotes(): NoteReviewData[] {
+        return Array.from(this.noteReviews.values());
+    }
+
+    rateNote(filePath: string, rating: Rating) {
+        const now = new Date();
+        const existing = this.noteReviews.get(filePath);
+        const fsrsCard = existing?.fsrsData || {
+            due: now, stability: 0, difficulty: 0, elapsed_days: 0,
+            scheduled_days: 0, reps: 0, lapses: 0, state: State.New, learning_steps: 0,
+        };
+        const schedulingCards = this.fsrs.repeat(fsrsCard, now);
+        const newFsrsData = schedulingCards[rating as Exclude<Rating, Rating.Manual>].card;
+
+        const noteKey = `note::${filePath}`;
+        this.fsrsDataStore[noteKey] = newFsrsData;
+        this.noteReviews.set(filePath, { filePath, fsrsData: newFsrsData });
+
+        const reviewLog: ReviewLog = { cardId: noteKey, timestamp: now.getTime(), rating };
+        this.reviewHistory.push(reviewLog);
+
+        if (this.plugin.settings.usePouchDB && this.pouchDB) {
+            this.pouchDB.saveCardState(noteKey, '', filePath, newFsrsData).catch(err =>
+                console.error('Failed to save note review state:', err),
+            );
+            this.pouchDB.addReviewLog(noteKey, now.getTime(), rating).catch(err =>
+                console.error('Failed to save note review log:', err),
+            );
+        } else {
+            void this.save();
+        }
     }
 }

@@ -46,6 +46,11 @@ export interface Deck {
     stats: { new: number; due: number; learning: number };
 }
 
+export interface NoteReviewData {
+    filePath: string;
+    fsrsData?: FSRSData;
+}
+
 export interface ReviewLog {
     cardId: string;
     timestamp: number;

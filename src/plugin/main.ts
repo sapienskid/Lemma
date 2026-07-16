@@ -97,6 +97,20 @@ class FSRSFlashcardsPlugin extends Plugin {
         }
 
         this.addCommand({
+            id: 'review-notes',
+            name: 'Review due notes',
+            callback: async () => {
+                const dueNotes = this.dataManager.getDueNotes();
+                if (dueNotes.length === 0) {
+                    new Notice('No notes due for review.');
+                    return;
+                }
+                const { ReviewNoteModal } = await import('../ui/ReviewNoteModal');
+                new ReviewNoteModal(this.app, this, dueNotes).open();
+            },
+        });
+
+        this.addCommand({
             id: 'reset-all-card-progress',
             name: 'Reset all card progress (nuclear option)',
             callback: async () => {
@@ -126,6 +140,7 @@ class FSRSFlashcardsPlugin extends Plugin {
             if (file instanceof TFile) {
                 const deckId = this.dataManager['getDeckId'](file.path);
                 this.dataManager.removeDeck(deckId);
+                void this.dataManager.updateFile(file);
                 debouncedRefresh();
             }
         }));
