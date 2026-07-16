@@ -5,7 +5,7 @@ type FSRSFlashcardsPlugin = import('../plugin/main').FSRSFlashcardsPlugin;
 
 export class StatsModal extends Modal {
     private plugin: FSRSFlashcardsPlugin;
-    private chartInstances: Array<Chart<'line' | 'bar', number[], string>> = [];
+    private chartInstances: Chart[] = [];
 
     constructor(app: App, plugin: FSRSFlashcardsPlugin) {
         super(app);
@@ -16,13 +16,24 @@ export class StatsModal extends Modal {
         this.contentEl.empty();
         this.titleEl.setText('Statistics');
         this.containerEl.addClass('fsrs-stats-modal');
+        this.containerEl.addClass('fsrs-stats-modal-scroll');
         Chart.register(...registerables);
 
-        const stats = this.plugin.dataManager.getStats();
+        const stats = this.plugin.dataManager.getDetailedStats();
 
+        this.renderHeader(stats);
+        this.renderRetentionCurve(stats);
+        this.renderChartsRow(stats);
+        this.renderHeatmap(stats);
+        this.renderIntervalHistogram(stats);
+        this.renderPerDeckChart(stats);
+        this.renderActivityForecast(stats);
+    }
+
+    private renderHeader(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
         const headerSection = this.contentEl.createDiv({ cls: 'fsrs-stats-header' });
 
-        const createHeaderCard = (icon: string, value: string, label: string, variant: string) => {
+        const createCard = (icon: string, value: string, label: string, variant: string) => {
             const card = headerSection.createDiv({ cls: `fsrs-stat-header-card fsrs-stat-${variant}` });
             const iconEl = card.createDiv({ cls: 'fsrs-stat-header-icon' });
             setIcon(iconEl, icon);
@@ -30,26 +41,236 @@ export class StatsModal extends Modal {
             card.createEl('div', { text: label, cls: 'fsrs-stat-header-label' });
         };
 
-        createHeaderCard('check-circle', stats.reviewsToday.toString(), 'Reviews today', 'success');
-        createHeaderCard('calendar', stats.forecast.reduce((a: number, b: number) => a + b, 0).toString(), 'Due this week', 'warning');
-        createHeaderCard('trending-up', stats.maturity.mature.toString(), 'Mature cards', 'info');
-        createHeaderCard('award', (stats.maturity.mature + stats.maturity.young).toString(), 'Total learned', 'neutral');
+        createCard('check-circle', stats.reviewsToday.toString(), 'Reviews today', 'success');
+        createCard('calendar', stats.forecast.reduce((a: number, b: number) => a + b, 0).toString(), 'Due this week', 'warning');
+        createCard('trending-up', stats.maturity.mature.toString(), 'Mature cards', 'info');
+        createCard('award', (stats.maturity.mature + stats.maturity.young).toString(), 'Total learned', 'neutral');
+    }
 
-        const chartsSection = this.contentEl.createDiv({ cls: 'fsrs-stats-charts' });
+    private renderRetentionCurve(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        if (stats.retentionCurve.length < 2) return;
 
-        const activityCard = chartsSection.createDiv({ cls: 'fsrs-chart-card' });
+        const card = this.contentEl.createDiv({ cls: 'fsrs-chart-card' });
+        const header = card.createDiv({ cls: 'fsrs-chart-header' });
+        setIcon(header.createDiv({ cls: 'fsrs-chart-icon' }), 'trending-up');
+        header.createEl('h3', { text: 'Retention rate' });
+
+        const wrapper = card.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const canvas = wrapper.createEl('canvas');
+
+        const chart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: stats.retentionCurve.map(r => r.date.slice(5)),
+                datasets: [
+                    {
+                        label: 'Predicted',
+                        data: stats.retentionCurve.map(r => r.predicted),
+                        borderColor: 'var(--interactive-accent)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        tension: 0.3,
+                    },
+                    {
+                        label: 'Actual',
+                        data: stats.retentionCurve.map(r => r.actual),
+                        borderColor: 'var(--color-green)',
+                        backgroundColor: 'rgba(var(--color-green-rgb), 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 1,
+                        ticks: { callback: (v) => `${Math.round(Number(v) * 100)}%` },
+                        grid: { color: 'var(--background-modifier-border)' },
+                    },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 12 } },
+                },
+            },
+        });
+        this.chartInstances.push(chart);
+    }
+
+    private renderChartsRow(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        const row = this.contentEl.createDiv({ cls: 'fsrs-charts-row' });
+
+        // Maturity donut
+        const donutCard = row.createDiv({ cls: 'fsrs-chart-card fsrs-chart-card-half' });
+        const donutHeader = donutCard.createDiv({ cls: 'fsrs-chart-header' });
+        setIcon(donutHeader.createDiv({ cls: 'fsrs-chart-icon' }), 'pie-chart');
+        donutHeader.createEl('h3', { text: 'Card maturity' });
+
+        const donutWrapper = donutCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const donutCanvas = donutWrapper.createEl('canvas');
+        const m = stats.maturity;
+        const maturityColors = ['--color-red', '--color-orange', '--interactive-accent', '--color-green'];
+        const maturityLabels = ['New', 'Learning', 'Young', 'Mature'];
+        const maturityData = [m.new, m.learning, m.young, m.mature];
+
+        const donutChart = new Chart(donutCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: maturityLabels,
+                datasets: [{
+                    data: maturityData,
+                    backgroundColor: maturityColors.map(c => `var(${c})`),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 8, font: { size: 11 } },
+                    },
+                },
+            },
+        });
+        this.chartInstances.push(donutChart);
+
+        // Interval distribution
+        if (stats.intervalBuckets.length > 0) {
+            const intervalCard = row.createDiv({ cls: 'fsrs-chart-card fsrs-chart-card-half' });
+            const intervalHeader = intervalCard.createDiv({ cls: 'fsrs-chart-header' });
+            setIcon(intervalHeader.createDiv({ cls: 'fsrs-chart-icon' }), 'clock');
+            intervalHeader.createEl('h3', { text: 'Review intervals' });
+
+            const intervalWrapper = intervalCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+            const intervalCanvas = intervalWrapper.createEl('canvas');
+
+            const intervalChart = new Chart(intervalCanvas, {
+                type: 'bar',
+                data: {
+                    labels: stats.intervalBuckets.map(b => b.label),
+                    datasets: [{
+                        label: 'Reviews',
+                        data: stats.intervalBuckets.map(b => b.count),
+                        backgroundColor: 'var(--interactive-accent)',
+                        borderRadius: 3,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'var(--background-modifier-border)' } },
+                        y: { grid: { display: false } },
+                    },
+                    plugins: { legend: { display: false } },
+                },
+            });
+            this.chartInstances.push(intervalChart);
+        }
+    }
+
+    private renderHeatmap(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        const card = this.contentEl.createDiv({ cls: 'fsrs-chart-card' });
+        const header = card.createDiv({ cls: 'fsrs-chart-header' });
+        setIcon(header.createDiv({ cls: 'fsrs-chart-icon' }), 'calendar');
+        header.createEl('h3', { text: '12-month activity' });
+
+        const heatmapEl = card.createDiv({ cls: 'fsrs-heatmap' });
+
+        // Group by week
+        const weeks: { date: string; count: number }[][] = [];
+        let currentWeek: { date: string; count: number }[] = [];
+
+        for (const day of stats.heatmapData) {
+            const d = new Date(day.date);
+            const dayOfWeek = d.getDay();
+            if (dayOfWeek === 0 && currentWeek.length > 0) {
+                weeks.push(currentWeek);
+                currentWeek = [];
+            }
+            currentWeek.push(day);
+        }
+        if (currentWeek.length > 0) weeks.push(currentWeek);
+
+        const maxCount = Math.max(...stats.heatmapData.map(d => d.count), 1);
+
+        for (const week of weeks) {
+            const weekRow = heatmapEl.createDiv({ cls: 'fsrs-heatmap-week' });
+            for (const day of week) {
+                const intensity = day.count > 0 ? Math.min(Math.ceil((day.count / maxCount) * 4), 4) : 0;
+                weekRow.createEl('div', {
+                    cls: `fsrs-heatmap-cell fsrs-heatmap-l${intensity}`,
+                    attr: { title: `${day.date}: ${day.count} reviews` },
+                });
+            }
+        }
+    }
+
+    private renderIntervalHistogram(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        // Rendered in renderChartsRow as half-width
+    }
+
+    private renderPerDeckChart(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        if (stats.perDeckStats.length === 0) return;
+
+        const card = this.contentEl.createDiv({ cls: 'fsrs-chart-card' });
+        const header = card.createDiv({ cls: 'fsrs-chart-header' });
+        setIcon(header.createDiv({ cls: 'fsrs-chart-icon' }), 'layers');
+        header.createEl('h3', { text: 'Per-deck breakdown' });
+
+        const wrapper = card.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const canvas = wrapper.createEl('canvas');
+
+        const chart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: stats.perDeckStats.map(d => d.name.length > 20 ? d.name.slice(0, 20) + '…' : d.name),
+                datasets: [
+                    { label: 'New', data: stats.perDeckStats.map(d => d.new), backgroundColor: 'var(--color-red)', borderRadius: 2 },
+                    { label: 'Learning', data: stats.perDeckStats.map(d => d.learning), backgroundColor: 'var(--color-orange)', borderRadius: 2 },
+                    { label: 'Due', data: stats.perDeckStats.map(d => d.due), backgroundColor: 'var(--interactive-accent)', borderRadius: 2 },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'var(--background-modifier-border)' } },
+                },
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
+                },
+            },
+        });
+        this.chartInstances.push(chart);
+    }
+
+    private renderActivityForecast(stats: ReturnType<FSRSFlashcardsPlugin['dataManager']['getDetailedStats']>) {
+        const chartsSection = this.contentEl.createDiv({ cls: 'fsrs-charts-row' });
+
+        // Activity
+        const activityCard = chartsSection.createDiv({ cls: 'fsrs-chart-card fsrs-chart-card-half' });
         const activityHeader = activityCard.createDiv({ cls: 'fsrs-chart-header' });
-        const activityIcon = activityHeader.createDiv({ cls: 'fsrs-chart-icon' });
-        setIcon(activityIcon, 'activity');
+        setIcon(activityHeader.createDiv({ cls: 'fsrs-chart-icon' }), 'activity');
         activityHeader.createEl('h3', { text: '30-day activity' });
 
-        const activityCanvasWrapper = activityCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
-        const activityCanvas = activityCanvasWrapper.createEl('canvas', { cls: 'fsrs-chart-canvas' });
+        const activityWrapper = activityCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const activityCanvas = activityWrapper.createEl('canvas');
         const activityLabels = Array.from({ length: 30 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (29 - i));
             return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         });
+
         const activityChart = new Chart(activityCanvas, {
             type: 'line',
             data: {
@@ -71,26 +292,27 @@ export class StatsModal extends Modal {
                 maintainAspectRatio: false,
                 scales: {
                     y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'var(--background-modifier-border)' } },
-                    x: { grid: { display: false } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
                 },
                 plugins: { legend: { display: false } },
             },
         });
         this.chartInstances.push(activityChart);
 
-        const forecastCard = chartsSection.createDiv({ cls: 'fsrs-chart-card' });
+        // Forecast
+        const forecastCard = chartsSection.createDiv({ cls: 'fsrs-chart-card fsrs-chart-card-half' });
         const forecastHeader = forecastCard.createDiv({ cls: 'fsrs-chart-header' });
-        const forecastIcon = forecastHeader.createDiv({ cls: 'fsrs-chart-icon' });
-        setIcon(forecastIcon, 'calendar');
+        setIcon(forecastHeader.createDiv({ cls: 'fsrs-chart-icon' }), 'calendar');
         forecastHeader.createEl('h3', { text: '7-day forecast' });
 
-        const forecastCanvasWrapper = forecastCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
-        const forecastCanvas = forecastCanvasWrapper.createEl('canvas', { cls: 'fsrs-chart-canvas' });
+        const forecastWrapper = forecastCard.createDiv({ cls: 'fsrs-chart-canvas-wrapper' });
+        const forecastCanvas = forecastWrapper.createEl('canvas');
         const forecastLabels = Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() + i);
             return d.toLocaleDateString(undefined, { weekday: 'short' });
         });
+
         const forecastChart = new Chart(forecastCanvas, {
             type: 'bar',
             data: {

@@ -1350,6 +1350,50 @@
     color: var(--text-normal);
 }
 
+/* ── Stats v2 ── */
+
+.fsrs-stats-modal-scroll .modal {
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.fsrs-charts-row {
+    display: flex;
+    gap: var(--size-4-2);
+    margin-bottom: var(--size-4-2);
+}
+
+.fsrs-chart-card-half {
+    flex: 1;
+    min-width: 0;
+}
+
+.fsrs-heatmap {
+    display: flex;
+    gap: 2px;
+    padding: var(--size-4-2);
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.fsrs-heatmap-week {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.fsrs-heatmap-cell {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--background-modifier-hover);
+}
+
+.fsrs-heatmap-l1 { background: var(--color-green); opacity: 0.3; }
+.fsrs-heatmap-l2 { background: var(--interactive-accent); opacity: 0.5; }
+.fsrs-heatmap-l3 { background: var(--color-orange); opacity: 0.7; }
+.fsrs-heatmap-l4 { background: var(--color-red); }
+
 /* ── Note Review Modal ── */
 
 .fsrs-note-review-header {

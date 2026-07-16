@@ -649,6 +649,137 @@ export class DataManager {
         };
     }
 
+    getDetailedStats(): {
+        reviewsToday: number;
+        activity: number[];
+        forecast: number[];
+        maturity: { mature: number; young: number; learning: number; new: number };
+        retentionCurve: { date: string; predicted: number; actual: number }[];
+        heatmapData: { date: string; count: number }[];
+        intervalBuckets: { label: string; count: number }[];
+        perDeckStats: { name: string; new: number; due: number; learning: number }[];
+    } {
+        const base = this.getStats();
+        const now = new Date();
+
+        // Retention curve: replay review sequences to compute predicted R vs actual recall
+        const dailyBuckets = new Map<string, { predictedSum: number; actualSum: number; count: number }>();
+        const byCard = new Map<string, { timestamp: number; rating: Rating }[]>();
+        for (const log of this.reviewHistory) {
+            if (!byCard.has(log.cardId)) byCard.set(log.cardId, []);
+            byCard.get(log.cardId)!.push({ timestamp: log.timestamp, rating: log.rating });
+        }
+
+        for (const reviews of byCard.values()) {
+            reviews.sort((a, b) => a.timestamp - b.timestamp);
+            let state: import('ts-fsrs').Card | null = null;
+
+            for (let i = 0; i < reviews.length; i++) {
+                const review = reviews[i];
+                const dateKey = new Date(review.timestamp).toISOString().slice(0, 10);
+
+                if (!dailyBuckets.has(dateKey)) {
+                    dailyBuckets.set(dateKey, { predictedSum: 0, actualSum: 0, count: 0 });
+                }
+                const bucket = dailyBuckets.get(dateKey)!;
+
+                if (state && i > 0) {
+                    const elapsedDays = (review.timestamp - reviews[i - 1].timestamp) / (1000 * 60 * 60 * 24);
+                    const stability = state.stability;
+                    const predictedR = Math.pow(1 + (Math.pow(0.9, 1 / -0.5) - 1) * Math.max(elapsedDays, 0) / Math.max(stability, 0.01), -0.5);
+                    bucket.predictedSum += predictedR;
+                } else {
+                    bucket.predictedSum += 1;
+                }
+
+                const repeatCard = state || {
+                    due: new Date(review.timestamp), stability: 0, difficulty: 0,
+                    elapsed_days: 0, scheduled_days: 0, reps: 0, lapses: 0,
+                    state: State.New,
+                };
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+                const schedulingCards: any = this.fsrs.repeat(repeatCard, new Date(review.timestamp));
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
+                state = schedulingCards[String(review.rating)].card;
+
+                const actualR = review.rating >= Rating.Good ? 1 : 0;
+                bucket.actualSum += actualR;
+                bucket.count++;
+            }
+        }
+
+        const retentionCurve: { date: string; predicted: number; actual: number }[] = [];
+        const sortedDates = [...dailyBuckets.keys()].sort().slice(-60);
+        for (const date of sortedDates) {
+            const b = dailyBuckets.get(date)!;
+            retentionCurve.push({
+                date,
+                predicted: +(b.predictedSum / b.count).toFixed(3),
+                actual: +(b.actualSum / b.count).toFixed(3),
+            });
+        }
+
+        // Heatmap data: last 365 days
+        const heatmapData: { date: string; count: number }[] = [];
+        const dayCounts = new Map<string, number>();
+        for (const log of this.reviewHistory) {
+            const date = new Date(log.timestamp).toISOString().slice(0, 10);
+            dayCounts.set(date, (dayCounts.get(date) || 0) + 1);
+        }
+        for (let i = 364; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const date = d.toISOString().slice(0, 10);
+            heatmapData.push({ date, count: dayCounts.get(date) || 0 });
+        }
+
+        // Interval distribution
+        const intervalDeltas: number[] = [];
+        for (const reviews of byCard.values()) {
+            reviews.sort((a, b) => a.timestamp - b.timestamp);
+            for (let i = 1; i < reviews.length; i++) {
+                const deltaDays = (reviews[i].timestamp - reviews[i - 1].timestamp) / (1000 * 60 * 60 * 24);
+                intervalDeltas.push(deltaDays);
+            }
+        }
+
+        const buckets = [
+            { max: 1, label: '<1d' },
+            { max: 2, label: '1d' },
+            { max: 3, label: '2d' },
+            { max: 4, label: '3d' },
+            { max: 7, label: '4-6d' },
+            { max: 14, label: '1-2w' },
+            { max: 30, label: '2-4w' },
+            { max: Infinity, label: '>30d' },
+        ];
+        const intervalBuckets = buckets.map(b => ({ label: b.label, count: 0 }));
+        for (const d of intervalDeltas) {
+            for (let i = 0; i < buckets.length; i++) {
+                if (d < buckets[i].max) {
+                    intervalBuckets[i].count++;
+                    break;
+                }
+            }
+        }
+
+        // Per-deck stats
+        const perDeckStats = this.getDecks().map(d => ({
+            name: d.title,
+            new: d.stats.new,
+            due: d.stats.due,
+            learning: d.stats.learning,
+        }));
+
+        return {
+            ...base,
+            retentionCurve,
+            heatmapData,
+            intervalBuckets,
+            perDeckStats,
+        };
+    }
+
     async resetAllProgress(): Promise<void> {
         console.debug('Nuclear option: Resetting all card progress...');
 
