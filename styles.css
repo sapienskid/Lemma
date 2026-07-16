@@ -1380,4 +1380,22 @@
     margin-top: var(--size-4-4);
 }
 
+/* ── Card context breadcrumb ── */
+
+.fsrs-card-context-hidden {
+    display: none;
+}
+
+.fsrs-card-context {
+    font-size: var(--font-smallest);
+    color: var(--text-muted);
+    padding: var(--size-4-1) var(--size-4-3);
+    margin-bottom: var(--size-4-2);
+    background: var(--background-modifier-hover);
+    border-radius: var(--radius-s);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 

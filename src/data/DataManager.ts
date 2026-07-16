@@ -197,6 +197,31 @@ export class DataManager {
         return cyrb53hex(path);
     }
 
+    private getHeadingContext(content: string, cardIndex: number): string | undefined {
+        const lines = content.split('\n');
+        const headingStack: string[] = [];
+        let foundContext: string | undefined;
+
+        for (let i = 0; i < Math.min(cardIndex, lines.length); i++) {
+            const line = lines[i];
+            const headingMatch = line.match(/^(#{1,6})\s+(.+)/);
+            if (headingMatch) {
+                const level = headingMatch[1].length;
+                const text = headingMatch[2].trim();
+                while (headingStack.length >= level) {
+                    headingStack.pop();
+                }
+                headingStack.push(text);
+            }
+        }
+
+        if (headingStack.length > 0) {
+            foundContext = headingStack.join(' > ');
+        }
+
+        return foundContext;
+    }
+
     async updateFile(file: TFile) {
         const deckId = this.getDeckId(file.path);
         const cache = this.plugin.app.metadataCache.getFileCache(file);
@@ -214,10 +239,11 @@ export class DataManager {
             const title = frontmatter && typeof frontmatter.title === 'string' ? frontmatter.title : file.basename;
             const newDeck: Deck = { id: deckId, title, filePath: file.path, cardIds: new Set(), stats: { new: 0, due: 0, learning: 0 } };
             const content = await this.plugin.app.vault.read(file);
+            const lines = content.split('\n');
 
-            this.parseBasicCards(content, file.path, deckId, newDeck);
-            this.parseSingleLineCards(content, file.path, deckId, newDeck);
-            this.parseClozeCards(content, file.path, deckId, newDeck);
+            this.parseBasicCards(content, lines, file.path, deckId, newDeck);
+            this.parseSingleLineCards(content, lines, file.path, deckId, newDeck);
+            this.parseClozeCards(content, lines, file.path, deckId, newDeck);
 
             if (newDeck.cardIds.size > 0) this.decks.set(deckId, newDeck);
         }
@@ -235,9 +261,16 @@ export class DataManager {
         }
     }
 
-    private parseSingleLineCards(content: string, filePath: string, deckId: string, newDeck: Deck) {
-        const lines = content.split('\n');
-        for (const line of lines) {
+    private findCardContext(content: string, lines: string[], searchText: string): string | undefined {
+        const idx = content.indexOf(searchText);
+        if (idx < 0) return undefined;
+        const lineNum = content.substring(0, idx).split('\n').length - 1;
+        return this.getHeadingContext(content, lineNum);
+    }
+
+    private parseSingleLineCards(content: string, lines: string[], filePath: string, deckId: string, newDeck: Deck) {
+        for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            const line = lines[lineIdx];
             const trimmed = line.trim();
             if (!trimmed) continue;
 
@@ -263,6 +296,7 @@ export class DataManager {
                     originalText: trimmed,
                     front: back,
                     back: front,
+                    context: this.getHeadingContext(content, lineIdx),
                     fsrsData: this.fsrsDataStore[cardId],
                 };
                 this.cards.set(cardId, card);
@@ -286,6 +320,7 @@ export class DataManager {
                     originalText: trimmed,
                     front,
                     back,
+                    context: this.getHeadingContext(content, lineIdx),
                     fsrsData: this.fsrsDataStore[cardId],
                 };
                 this.cards.set(cardId, card);
@@ -293,8 +328,7 @@ export class DataManager {
             }
         }
     }
-
-    private parseBasicCards(content: string, filePath: string, deckId: string, newDeck: Deck) {
+    private parseBasicCards(content: string, lines: string[], filePath: string, deckId: string, newDeck: Deck) {
         const basicCardsRaw = content.split(/---\s*card\s*---/i).slice(1);
         for (const cardRaw of basicCardsRaw) {
             const parts = cardRaw.split(/\n---\n/);
@@ -317,6 +351,8 @@ export class DataManager {
             const back = backPart.trim();
             if (!front || !back) continue;
 
+            const context = this.findCardContext(content, lines, cardRaw);
+
             const card: Card = {
                 id: cardId,
                 deckId,
@@ -325,6 +361,7 @@ export class DataManager {
                 originalText: cardRaw,
                 front,
                 back,
+                context,
                 fsrsData: this.fsrsDataStore[cardId],
             };
             this.cards.set(cardId, card);
@@ -332,8 +369,9 @@ export class DataManager {
         }
     }
 
-    private parseClozeCards(content: string, filePath: string, deckId: string, newDeck: Deck) {
+    private parseClozeCards(content: string, lines: string[], filePath: string, deckId: string, newDeck: Deck) {
         const paragraphs = content.split(/\n\s*\n/);
+
         for (const paragraph of paragraphs) {
             const clozeRegex = /==c(\d+)::(.*?)==/gs;
             const clozes = [...paragraph.matchAll(clozeRegex)];
@@ -341,6 +379,8 @@ export class DataManager {
             if (clozes.length === 0) continue;
 
             const blockIdMatch = paragraph.match(/\^([a-zA-Z0-9-]+)\s*$/);
+
+            const context = this.findCardContext(content, lines, paragraph);
 
             clozes.forEach(cloze => {
                 const clozeNum = cloze[1];
@@ -364,6 +404,7 @@ export class DataManager {
                     originalText: paragraph,
                     front,
                     back,
+                    context,
                     fsrsData: this.fsrsDataStore[cardId],
                 };
                 this.cards.set(cardId, card);

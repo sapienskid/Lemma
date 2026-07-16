@@ -30,6 +30,7 @@ export interface CardData {
     originalText: string;
     front: string;
     back: string;
+    context?: string;
 }
 
 export type FSRSData = FSRSCard;

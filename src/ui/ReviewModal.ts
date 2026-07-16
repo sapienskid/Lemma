@@ -70,6 +70,13 @@ export class ReviewModal extends Modal {
         this.cardContainer = container.createDiv({ cls: 'fsrs-review-card' });
         this.cardContainer.style.setProperty('font-size', `${this.plugin.settings.fontSize}px`);
 
+        const contextEl = this.cardContainer.createDiv({ cls: 'fsrs-card-context' });
+        if (card.context) {
+            contextEl.setText(card.context);
+        } else {
+            contextEl.addClass('fsrs-card-context-hidden');
+        }
+
         this.frontEl = this.cardContainer.createDiv({ cls: 'fsrs-card-front' });
         this.answerContainer = this.cardContainer.createDiv({ cls: 'fsrs-card-answer' });
         this.answerContainer.hide();
@@ -125,6 +132,17 @@ export class ReviewModal extends Modal {
 
         this.frontEl.empty();
         this.backEl.empty();
+
+        const contextEl = this.cardContainer.querySelector('.fsrs-card-context') as HTMLElement;
+        if (contextEl) {
+            if (card.context) {
+                contextEl.setText(card.context);
+                contextEl.removeClass('fsrs-card-context-hidden');
+            } else {
+                contextEl.addClass('fsrs-card-context-hidden');
+            }
+        }
+
         await MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.renderComponent);
         await MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.renderComponent);
 
