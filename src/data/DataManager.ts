@@ -428,6 +428,16 @@ export class DataManager {
             });
     }
 
+    private getReviewedTodayCount(deckId: string): number {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        return this.reviewHistory.filter(log =>
+            log.timestamp >= todayStart.getTime() &&
+            this.cards.has(log.cardId) &&
+            this.cards.get(log.cardId)?.deckId === deckId
+        ).length;
+    }
+
     getReviewQueue(deckId: string): Card[] {
         const deck = this.decks.get(deckId);
         if (!deck) return [];
@@ -435,11 +445,37 @@ export class DataManager {
         const allCards = Array.from(deck.cardIds)
             .map(id => this.cards.get(id))
             .filter((card): card is Card => card !== undefined && card !== null && card.deckId === deckId);
+
+        const alreadyReviewedToday = new Set(
+            this.reviewHistory
+                .filter(log => {
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+                    return log.timestamp >= todayStart.getTime();
+                })
+                .map(log => log.cardId)
+        );
+
         const dueCards = allCards.filter(c =>
             c.fsrsData && c.fsrsData.state !== State.New && c.fsrsData.due <= now
-        ).sort((a, b) => a.fsrsData!.due.getTime() - b.fsrsData!.due.getTime());
-        const newCards = allCards.filter(c => !c.fsrsData || c.fsrsData.state === State.New);
-        return [...dueCards.slice(0, this.plugin.settings.reviewsPerDay), ...newCards.slice(0, this.plugin.settings.newCardsPerDay)];
+        )
+            .filter(c => !alreadyReviewedToday.has(c.id))
+            .sort((a, b) => a.fsrsData!.due.getTime() - b.fsrsData!.due.getTime());
+
+        const newCards = allCards.filter(c =>
+            !c.fsrsData || c.fsrsData.state === State.New
+        )
+            .filter(c => !alreadyReviewedToday.has(c.id));
+
+        const reviewsRemaining = Math.max(0, this.plugin.settings.reviewsPerDay - this.getReviewedTodayCount(deckId));
+        const newCardsRemaining = Math.max(0, this.plugin.settings.newCardsPerDay - newCards.filter(c =>
+            this.reviewHistory.some(log => log.cardId === c.id)
+        ).length);
+
+        return [
+            ...dueCards.slice(0, reviewsRemaining),
+            ...newCards.slice(0, newCardsRemaining),
+        ];
     }
 
     getAllCardsForStudy(deckId: string): Card[] {
