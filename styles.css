@@ -1350,6 +1350,99 @@
     color: var(--text-normal);
 }
 
+/* ── Gamification ── */
+
+.fsrs-gamification {
+    display: flex;
+    gap: var(--size-4-4);
+    padding: var(--size-4-2) var(--size-4-4);
+    border-top: 1px solid var(--background-modifier-border);
+    margin-top: var(--size-4-2);
+    padding-top: var(--size-4-3);
+}
+
+.fsrs-gamification-item {
+    display: flex;
+    align-items: center;
+    gap: var(--size-4-1);
+    font-size: var(--font-smaller);
+}
+
+.fsrs-gamification-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.fsrs-gamification-value {
+    font-weight: var(--bold-weight);
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+}
+
+.fsrs-gamification-label {
+    color: var(--text-muted);
+    font-size: var(--font-smallest);
+}
+
+/* ── Type-in answer ── */
+
+.fsrs-typein-container {
+    padding: var(--size-4-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--size-4-2);
+}
+
+.fsrs-typein-input {
+    width: 100%;
+    padding: var(--size-4-2);
+    border: 2px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-medium);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.fsrs-typein-input:focus {
+    border-color: var(--interactive-accent);
+}
+
+.fsrs-typein-check-btn {
+    align-self: flex-start;
+}
+
+.fsrs-typein-feedback {
+    padding: var(--size-4-2);
+    border-radius: var(--radius-s);
+}
+
+.fsrs-typein-correct {
+    color: var(--color-green);
+    font-weight: var(--bold-weight);
+    font-size: var(--font-ui-medium);
+}
+
+.fsrs-typein-partial {
+    color: var(--color-orange);
+    font-weight: var(--bold-weight);
+    font-size: var(--font-ui-medium);
+}
+
+.fsrs-typein-wrong {
+    color: var(--color-red);
+    font-weight: var(--bold-weight);
+    font-size: var(--font-ui-medium);
+}
+
+.fsrs-typein-answer {
+    margin-top: var(--size-4-1);
+    font-size: var(--font-ui-small);
+    color: var(--text-muted);
+}
+
 /* ── Stats v2 ── */
 
 .fsrs-stats-modal-scroll .modal {

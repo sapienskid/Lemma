@@ -85,6 +85,47 @@ class FSRSFlashcardsPlugin extends Plugin {
             },
         });
         this.addCommand({
+            id: 'cloze-from-selection',
+            name: 'Create cloze from selection',
+            editorCallback: (editor: Editor) => {
+                const selection = editor.getSelection();
+                if (selection) {
+                    const existing = editor.getLine(editor.getCursor().line);
+                    const clozeMatch = existing.match(/==c(\d+)::/);
+                    const nextNum = clozeMatch ? parseInt(clozeMatch[1], 10) + 1 : 1;
+                    editor.replaceSelection(`==c${nextNum}::${selection}==`);
+                } else {
+                    const template = `==c1::text==`;
+                    editor.replaceSelection(template);
+                    const cursor = editor.getCursor();
+                    // Place cursor inside the cloze text
+                    editor.setCursor({ line: cursor.line, ch: cursor.ch - 7 });
+                }
+            },
+        });
+        this.addCommand({
+            id: 'add-typein-card',
+            name: 'Add a type-in card',
+            editorCallback: (editor: Editor) => {
+                const blockId = generateBlockId();
+                const template = `\n\n---card--- ?type ^${blockId}\nQuestion\n---\nAnswer\n\n`;
+                const cursor = editor.getCursor();
+                editor.replaceRange(template, cursor);
+                editor.setCursor({ line: cursor.line + 3, ch: 0 });
+            },
+        });
+        this.addCommand({
+            id: 'add-typein-single-line',
+            name: 'Add a type-in single-line card',
+            editorCallback: (editor: Editor) => {
+                const blockId = generateBlockId();
+                const template = `\nQuestion::Answer ?type ^${blockId}`;
+                const cursor = editor.getCursor();
+                editor.replaceRange(template, cursor);
+                editor.setCursor({ line: cursor.line + 1, ch: 0 });
+            },
+        });
+        this.addCommand({
             id: 'open-fsrs-dashboard',
             name: 'Open dashboard',
             callback: () => {
@@ -148,6 +189,22 @@ class FSRSFlashcardsPlugin extends Plugin {
                 new ResetProgressModal(this.app, this).open();
             },
         });
+
+        this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor) => {
+            const selection = editor.getSelection();
+            if (selection) {
+                menu.addItem((item) => {
+                    item.setTitle('Create cloze from selection')
+                        .setIcon('highlighter')
+                        .onClick(() => {
+                            const line = editor.getLine(editor.getCursor().line);
+                            const clozeMatch = line.match(/==c(\d+)::/);
+                            const nextNum = clozeMatch ? parseInt(clozeMatch[1], 10) + 1 : 1;
+                            editor.replaceSelection(`==c${nextNum}::${selection}==`);
+                        });
+                });
+            }
+        }));
 
         const debouncedRefresh = debounce(() => {
             this.dataManager.recalculateAllDeckStats();

@@ -6,6 +6,15 @@ export interface FSRSParameters {
     w: readonly number[];
 }
 
+export interface Gamification {
+    currentStreak: number;
+    longestStreak: number;
+    lastReviewDate: string;
+    totalXp: number;
+    mostReviewsInDay: number;
+    totalCardsReviewed: number;
+}
+
 export interface FSRSSettings {
     deckTag: string;
     newCardsPerDay: number;
@@ -18,9 +27,10 @@ export interface FSRSSettings {
     syncUsername: string;
     syncPassword: string;
     usePouchDB: boolean;
+    gamification: Gamification;
 }
 
-export type CardType = 'basic' | 'cloze' | 'reversed';
+export type CardType = 'basic' | 'cloze' | 'reversed' | 'typein';
 
 export interface CardData {
     id: string;

@@ -20,6 +20,10 @@ export class ReviewModal extends Modal {
     private controlsContainer: HTMLElement;
     private showAnswerButton: ButtonComponent;
     private renderComponent: Component = new Component();
+    private typeinContainer: HTMLElement;
+    private typeinInput: HTMLInputElement;
+    private typeinFeedback: HTMLElement;
+    private typeinCheckBtn: ButtonComponent;
 
     private gestureStartX = 0;
     private gestureStartY = 0;
@@ -107,6 +111,53 @@ export class ReviewModal extends Modal {
 
         this.controlsContainer = bottomControlsContainer.createDiv({ cls: 'fsrs-review-controls' });
         this.controlsContainer.hide();
+
+        this.typeinContainer = container.createDiv({ cls: 'fsrs-typein-container' });
+        this.typeinContainer.hide();
+
+        this.typeinInput = this.typeinContainer.createEl('input', {
+            cls: 'fsrs-typein-input',
+            attr: { type: 'text', placeholder: 'Type your answer...', autocomplete: 'off', spellcheck: 'false' },
+        });
+        this.typeinFeedback = this.typeinContainer.createDiv({ cls: 'fsrs-typein-feedback' });
+        this.typeinFeedback.hide();
+
+        this.typeinCheckBtn = new ButtonComponent(this.typeinContainer)
+            .setButtonText('Check')
+            .setCta()
+            .onClick(() => {
+                const card = this.getCurrentCard();
+                const typed = this.typeinInput.value.trim();
+                const correct = card.back.trim();
+                if (!typed) return;
+
+                const exactMatch = typed.toLowerCase() === correct.toLowerCase();
+                const keywordMatch = !exactMatch && correct.toLowerCase().split(/\s+/).some(word =>
+                    word.length > 3 && typed.toLowerCase().includes(word.toLowerCase())
+                );
+
+                this.typeinFeedback.empty();
+                this.typeinFeedback.show();
+                this.typeinInput.disabled = true;
+                this.typeinCheckBtn.setDisabled(true);
+
+                if (exactMatch) {
+                    this.typeinFeedback.createEl('span', { text: 'Correct', cls: 'fsrs-typein-correct' });
+                    this.typeinFeedback.createEl('p', { text: `Answer: ${correct}`, cls: 'fsrs-typein-answer' });
+                    this.handleRating(Rating.Good);
+                } else if (keywordMatch) {
+                    this.typeinFeedback.createEl('span', { text: 'Close match', cls: 'fsrs-typein-partial' });
+                    this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
+                    this.controlsContainer.show();
+                    this.showAnswerButton.buttonEl.hide();
+                } else {
+                    this.typeinFeedback.createEl('span', { text: 'Not correct', cls: 'fsrs-typein-wrong' });
+                    this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
+                    this.controlsContainer.show();
+                    this.showAnswerButton.buttonEl.hide();
+                }
+            });
+        this.typeinCheckBtn.buttonEl.addClass('fsrs-typein-check-btn');
 
         const addHandler = (target: EventTarget, type: string, handler: EventListener) => {
             target.addEventListener(type, handler);
@@ -236,7 +287,19 @@ export class ReviewModal extends Modal {
         await MarkdownRenderer.render(this.app, card.front, this.frontEl, card.filePath, this.renderComponent);
         await MarkdownRenderer.render(this.app, card.back, this.backEl, card.filePath, this.renderComponent);
 
-        this.showAnswerButton.buttonEl.show();
+        if (card.type === 'typein') {
+            this.showAnswerButton.buttonEl.hide();
+            this.typeinContainer.show();
+            this.typeinInput.value = '';
+            this.typeinInput.disabled = false;
+            this.typeinCheckBtn.setDisabled(false);
+            this.typeinFeedback.empty();
+            this.typeinFeedback.hide();
+            this.typeinInput.focus();
+        } else {
+            this.showAnswerButton.buttonEl.show();
+            this.typeinContainer.hide();
+        }
     }
 
     private showAnswer() {

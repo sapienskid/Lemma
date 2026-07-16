@@ -150,6 +150,26 @@ export class DashboardView extends ItemView {
         createStatPill('layers', globalStats.total.toString(), 'total', 'neutral');
         createStatPill('clock', globalStats.due.toString(), 'due', 'due');
         createStatPill('sparkles', globalStats.new.toString(), 'new', 'new');
+
+        // Gamification widget
+        const gamification = this.plugin.dataManager.getGamificationStats();
+        const gamificationEl = headerEl.createDiv({ cls: 'fsrs-gamification' });
+
+        const streakEl = gamificationEl.createDiv({ cls: 'fsrs-gamification-item' });
+        setIcon(streakEl.createSpan({ cls: 'fsrs-gamification-icon' }), 'flame');
+        const streakValue = streakEl.createSpan({ cls: 'fsrs-gamification-value' });
+        streakValue.setText(gamification.currentStreak.toString());
+        streakEl.createSpan({ cls: 'fsrs-gamification-label', text: 'day streak' });
+
+        const xpEl = gamificationEl.createDiv({ cls: 'fsrs-gamification-item' });
+        setIcon(xpEl.createSpan({ cls: 'fsrs-gamification-icon' }), 'star');
+        xpEl.createSpan({ cls: 'fsrs-gamification-value', text: gamification.totalXp.toString() });
+        xpEl.createSpan({ cls: 'fsrs-gamification-label', text: 'XP' });
+
+        const bestEl = gamificationEl.createDiv({ cls: 'fsrs-gamification-item' });
+        setIcon(bestEl.createSpan({ cls: 'fsrs-gamification-icon' }), 'trophy');
+        bestEl.createSpan({ cls: 'fsrs-gamification-value', text: gamification.longestStreak.toString() });
+        bestEl.createSpan({ cls: 'fsrs-gamification-label', text: 'best streak' });
     }
 
     private renderDecks() {

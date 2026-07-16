@@ -17,6 +17,14 @@ export const DEFAULT_SETTINGS: FSRSSettings = {
     syncUsername: '',
     syncPassword: '',
     usePouchDB: true,
+    gamification: {
+        currentStreak: 0,
+        longestStreak: 0,
+        lastReviewDate: '',
+        totalXp: 0,
+        mostReviewsInDay: 0,
+        totalCardsReviewed: 0,
+    },
 };
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

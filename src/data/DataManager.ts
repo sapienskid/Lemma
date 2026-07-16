@@ -1,6 +1,6 @@
 import { FSRS, Rating, State } from 'ts-fsrs';
 import { Notice, TFile } from 'obsidian';
-import type { Card, Deck, FSRSData, FSRSParameters, NoteReviewData, PluginData, ReviewLog } from './types';
+import type { Card, Deck, FSRSData, FSRSParameters, Gamification, NoteReviewData, PluginData, ReviewLog } from './types';
 import { isRecord, toStringArray, cyrb53hex, getDocsWritten, getErrorMessage, isLikelyCorsOrNetworkErrorMessage, buildAuthenticatedUrl } from './constants';
 import { PouchDBManager } from '../database/PouchDBManager';
 
@@ -254,7 +254,11 @@ export class DataManager {
             // Extract optional block ID from end of line: ^identifier
             const blockIdMatch = trimmed.match(/\s+\^([a-zA-Z0-9-]+)\s*$/);
             const blockId = blockIdMatch ? blockIdMatch[1] : null;
-            const cardText = blockIdMatch ? trimmed.slice(0, blockIdMatch.index).trim() : trimmed;
+            let cardText = blockIdMatch ? trimmed.slice(0, blockIdMatch.index).trim() : trimmed;
+
+            // Detect ?type flag and strip it
+            const isTypeIn = /\?type\b/.test(cardText);
+            cardText = cardText.replace(/\?type\b\s*/g, '').trim();
 
             // Reversed single-line: Q:::A
             const reversedMatch = cardText.match(/^([^:].*?):::(.*)$/);
@@ -263,14 +267,15 @@ export class DataManager {
                 const back = reversedMatch[2].trim();
                 if (!front || !back) continue;
 
+                const rType = isTypeIn ? 'typein' : 'reversed';
                 const cardId = blockId
                     ? `${deckId}::${blockId}`
-                    : cyrb53hex(`${filePath}::${trimmed}::reversed`);
+                    : cyrb53hex(`${filePath}::${trimmed}::${rType}`);
                 const card: Card = {
                     id: cardId,
                     deckId,
                     filePath,
-                    type: 'reversed',
+                    type: rType,
                     originalText: trimmed,
                     front: back,
                     back: front,
@@ -289,6 +294,7 @@ export class DataManager {
                 const back = basicMatch[2].trim();
                 if (!front || !back) continue;
 
+                const bType = isTypeIn ? 'typein' : 'basic';
                 const cardId = blockId
                     ? `${deckId}::${blockId}`
                     : cyrb53hex(`${filePath}::${trimmed}`);
@@ -296,7 +302,7 @@ export class DataManager {
                     id: cardId,
                     deckId,
                     filePath,
-                    type: 'basic',
+                    type: bType,
                     originalText: trimmed,
                     front,
                     back,
@@ -317,13 +323,16 @@ export class DataManager {
             const frontPart = parts[0];
             const backPart = parts.slice(1).join('\n---\n');
 
-            const blockIdMatch = frontPart.match(/\^([a-zA-Z0-9-]+)\s*$/m);
+            const isTypeIn = /\?type\b/.test(frontPart);
+            const cleanFront = frontPart.replace(/\?type\b\s*/g, '').trim();
+
+            const blockIdMatch = cleanFront.match(/\^([a-zA-Z0-9-]+)\s*$/m);
             let cardId: string;
-            let front = frontPart.trim();
+            let front = cleanFront.trim();
 
             if (blockIdMatch) {
                 cardId = `${deckId}::${blockIdMatch[1]}`;
-                front = frontPart.replace(/\^([a-zA-Z0-9-]+)\s*$/m, '').trim();
+                front = cleanFront.replace(/\^([a-zA-Z0-9-]+)\s*$/m, '').trim();
             } else {
                 cardId = cyrb53hex(filePath + '::' + front);
             }
@@ -337,7 +346,7 @@ export class DataManager {
                 id: cardId,
                 deckId,
                 filePath,
-                type: 'basic',
+                type: isTypeIn ? 'typein' : 'basic',
                 originalText: cardRaw,
                 front,
                 back,
@@ -542,6 +551,50 @@ export class DataManager {
         } else {
             void this.save();
         }
+
+        this.updateGamification(now, rating, newFsrsData);
+    }
+
+    private updateGamification(now: Date, rating: Rating, fsrsData: import('ts-fsrs').Card) {
+        const g = this.plugin.settings.gamification;
+        const today = now.toISOString().slice(0, 10);
+
+        // Streak
+        if (g.lastReviewDate) {
+            const lastDate = new Date(g.lastReviewDate);
+            const diffDays = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays === 1) {
+                g.currentStreak++;
+            } else if (diffDays > 1) {
+                g.currentStreak = 1;
+            }
+        } else {
+            g.currentStreak = 1;
+        }
+        g.lastReviewDate = today;
+        if (g.currentStreak > g.longestStreak) {
+            g.longestStreak = g.currentStreak;
+        }
+
+        // XP: base 10 × rating multiplier × interval multiplier
+        const ratingMult = rating === Rating.Again ? 1 : rating === Rating.Hard ? 2 : rating === Rating.Good ? 3 : 4;
+        const intervalDays = Math.max(fsrsData.scheduled_days || 0, 1);
+        const xpGained = Math.round(10 * ratingMult * Math.min(intervalDays / 7, 3));
+        g.totalXp += xpGained;
+
+        // Total cards reviewed
+        g.totalCardsReviewed++;
+
+        // Most reviews in a day
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const reviewsToday = this.reviewHistory.filter(l => l.timestamp >= todayStart).length;
+        if (reviewsToday > g.mostReviewsInDay) {
+            g.mostReviewsInDay = reviewsToday;
+        }
+    }
+
+    getGamificationStats(): Gamification {
+        return { ...this.plugin.settings.gamification };
     }
 
     getNextReviewIntervals(card: Card): Record<number, string> {
