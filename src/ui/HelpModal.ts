@@ -67,8 +67,8 @@ export class HelpModal extends Modal {
             if (Array.isArray(items[0])) {
                 const grid = section.createDiv({ cls: 'fsrs-help-shortcuts' });
                 for (const [key, desc] of items as string[][]) {
-                    grid.createEl('span', { cls: 'fsrs-help-key', text: key });
-                    grid.createEl('span', { text: desc });
+                    grid.createSpan({ cls: 'fsrs-help-key', text: key });
+                    grid.createSpan({ text: desc });
                 }
             } else {
                 const ul = section.createEl('ul');

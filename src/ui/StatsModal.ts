@@ -36,8 +36,8 @@ export class StatsModal extends Modal {
             const card = headerSection.createDiv({ cls: `fsrs-stat-header-card fsrs-stat-${variant}` });
             const iconEl = card.createDiv({ cls: 'fsrs-stat-header-icon' });
             setIcon(iconEl, icon);
-            card.createEl('div', { text: value, cls: 'fsrs-stat-header-value' });
-            card.createEl('div', { text: label, cls: 'fsrs-stat-header-label' });
+            card.createDiv({ text: value, cls: 'fsrs-stat-header-value' });
+            card.createDiv({ text: label, cls: 'fsrs-stat-header-label' });
         };
 
         createCard('check-circle', stats.reviewsToday.toString(), 'Reviews today', 'success');
@@ -205,7 +205,7 @@ export class StatsModal extends Modal {
             const weekRow = heatmapEl.createDiv({ cls: 'fsrs-heatmap-week' });
             for (const day of week) {
                 const intensity = day.count > 0 ? Math.min(Math.ceil((day.count / maxCount) * 4), 4) : 0;
-                weekRow.createEl('div', {
+                weekRow.createDiv({
                     cls: `fsrs-heatmap-cell fsrs-heatmap-l${intensity}`,
                     attr: { title: `${day.date}: ${day.count} reviews` },
                 });

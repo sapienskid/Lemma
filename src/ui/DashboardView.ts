@@ -75,7 +75,7 @@ export class DashboardView extends ItemView {
         }, true);
         const dueCount = this.plugin.dataManager.getDecks().reduce((acc: number, d: Deck) => acc + d.stats.due, 0);
         if (dueCount > 0) {
-            studyAllBtn.buttonEl.createEl('span', { text: dueCount.toString(), cls: 'fsrs-action-badge' });
+            studyAllBtn.buttonEl.createSpan({ text: dueCount.toString(), cls: 'fsrs-action-badge' });
         }
 
         createDashBtn('bar-chart-2', 'Statistics', () => new StatsModal(this.app, this.plugin).open());
@@ -84,11 +84,11 @@ export class DashboardView extends ItemView {
 
         const iconRow = actionsRow.createDiv({ cls: 'fsrs-icon-row' });
 
-        const helpBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Help & guide' } });
+        const helpBtn = iconRow.createDiv({ cls: 'clickable-icon', attr: { 'aria-label': 'Help & guide' } });
         setIcon(helpBtn, 'help-circle');
         helpBtn.addEventListener('click', () => new HelpModal(this.app, this.plugin).open());
 
-        const refreshBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Refresh' } });
+        const refreshBtn = iconRow.createDiv({ cls: 'clickable-icon', attr: { 'aria-label': 'Refresh' } });
         setIcon(refreshBtn, 'refresh-cw');
         refreshBtn.addEventListener('click', () => {
             void (async () => {
@@ -104,7 +104,7 @@ export class DashboardView extends ItemView {
 
         const pouchDB = this.plugin.dataManager.getPouchDB();
         if (this.plugin.settings.syncEnabled && pouchDB) {
-            const syncBtn = iconRow.createEl('div', { cls: 'clickable-icon', attr: { 'aria-label': 'Sync' } });
+            const syncBtn = iconRow.createDiv({ cls: 'clickable-icon', attr: { 'aria-label': 'Sync' } });
             setIcon(syncBtn, 'cloud');
             syncBtn.addEventListener('click', () => {
                 void (async () => {
@@ -143,8 +143,8 @@ export class DashboardView extends ItemView {
             const pill = statsEl.createDiv({ cls: `fsrs-stat-pill fsrs-stat-pill-${variant}` });
             const iconEl = pill.createDiv();
             setIcon(iconEl, icon);
-            pill.createEl('span', { text: value, cls: 'fsrs-stat-pill-value' });
-            pill.createEl('span', { text: label });
+            pill.createSpan({ text: value, cls: 'fsrs-stat-pill-value' });
+            pill.createSpan({ text: label });
         };
 
         createStatPill('layers', globalStats.total.toString(), 'total', 'neutral');
@@ -214,19 +214,19 @@ export class DashboardView extends ItemView {
         setIcon(folderIcon, 'folder-closed');
 
         const folderName = folderPath === 'Root' ? 'Root' : folderPath.substring(folderPath.lastIndexOf('/') + 1);
-        folderHeader.createEl('span', { text: folderName, cls: 'fsrs-folder-name' });
+        folderHeader.createSpan({ text: folderName, cls: 'fsrs-folder-name' });
 
         const dueCardsInFolder = decks.reduce((sum, deck) => sum + deck.stats.due, 0);
 
         const countContainer = folderHeader.createDiv({ cls: 'fsrs-folder-count-container' });
 
         if (dueCardsInFolder > 0) {
-            countContainer.createEl('span', {
+            countContainer.createSpan({
                 text: `${dueCardsInFolder}`,
                 cls: 'fsrs-folder-count fsrs-folder-due-count',
             });
         }
-        countContainer.createEl('span', {
+        countContainer.createSpan({
             text: `${decks.length}`,
             cls: 'fsrs-folder-count',
         });
@@ -275,17 +275,17 @@ export class DashboardView extends ItemView {
             iconEl.addClass('has-due');
         }
 
-        deckRow.createEl('span', { text: deck.title, cls: 'fsrs-deck-row-title' });
+        deckRow.createSpan({ text: deck.title, cls: 'fsrs-deck-row-title' });
 
         const statsEl = deckRow.createDiv({ cls: 'fsrs-deck-row-stats' });
         if (deck.stats.due > 0) {
-            statsEl.createEl('span', {
+            statsEl.createSpan({
                 text: `${deck.stats.due}`,
                 cls: 'fsrs-stat-due has-due',
             });
         }
         if (deck.stats.new > 0) {
-            statsEl.createEl('span', { text: `${deck.stats.new}`, cls: 'fsrs-stat-new' });
+            statsEl.createSpan({ text: `${deck.stats.new}`, cls: 'fsrs-stat-new' });
         }
 
         const actionsEl = deckRow.createDiv({ cls: 'fsrs-deck-row-actions' });
@@ -350,7 +350,7 @@ export class DashboardView extends ItemView {
             cls: 'fsrs-empty-desc',
         });
 
-        const tipEl = emptyStateEl.createEl('div', { cls: 'fsrs-empty-tip' });
+        const tipEl = emptyStateEl.createDiv({ cls: 'fsrs-empty-tip' });
         const tipIcon = tipEl.createDiv({ cls: 'fsrs-tip-icon' });
         setIcon(tipIcon, 'lightbulb');
         tipEl.createSpan({ text: 'Pro tip: Use ---card--- to create flashcard blocks' });

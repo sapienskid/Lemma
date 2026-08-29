@@ -149,11 +149,11 @@ export class ReviewModal extends Modal {
                 this.typeinCheckBtn.setDisabled(true);
 
                 if (exactMatch) {
-                    this.typeinFeedback.createEl('span', { text: 'Correct', cls: 'fsrs-typein-correct' });
+                    this.typeinFeedback.createSpan({ text: 'Correct', cls: 'fsrs-typein-correct' });
                 } else if (keywordMatch) {
-                    this.typeinFeedback.createEl('span', { text: 'Close match', cls: 'fsrs-typein-partial' });
+                    this.typeinFeedback.createSpan({ text: 'Close match', cls: 'fsrs-typein-partial' });
                 } else {
-                    this.typeinFeedback.createEl('span', { text: 'Not correct', cls: 'fsrs-typein-wrong' });
+                    this.typeinFeedback.createSpan({ text: 'Not correct', cls: 'fsrs-typein-wrong' });
                 }
                 this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
 

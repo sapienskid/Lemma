@@ -40,7 +40,7 @@ export class ReviewNoteModal extends Modal {
         const headerEl = noteContainer.createDiv({ cls: 'fsrs-note-review-header' });
         const noteData = this.getCurrentNote();
         setIcon(headerEl.createSpan({ cls: 'fsrs-note-review-icon' }), 'file-text');
-        headerEl.createEl('span', { text: noteData.filePath.split('/').pop() || 'untitled', cls: 'fsrs-note-review-title' });
+        headerEl.createSpan({ text: noteData.filePath.split('/').pop() || 'untitled', cls: 'fsrs-note-review-title' });
 
         noteContainer.createDiv({ cls: 'fsrs-note-review-content fsrs-note-preview' });
 

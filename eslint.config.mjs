@@ -20,10 +20,11 @@ export default defineConfig([
 			},
 		},
 		rules: {
+			"obsidianmd/settings-tab/prefer-setting-definitions": "off",
 			"obsidianmd/ui/sentence-case": [
 				"error",
 				{
-					acronyms: ["FSRS", "URL", "JSON"],
+					acronyms: ["FSRS", "URL", "JSON", "XP", "CRDT"],
 					brands: ["Lemma", "Obsidian", "PouchDB", "CouchDB", "IndexedDB"],
 				},
 			],

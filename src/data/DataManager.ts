@@ -1,4 +1,4 @@
-import { FSRS, Rating, State } from 'ts-fsrs';
+import { FSRS, Rating, State, createEmptyCard, type Card as FSRSCard } from 'ts-fsrs';
 import { Notice, TFile } from 'obsidian';
 import type { Card, Deck, FSRSData, FSRSParameters, Gamification, NoteReviewData, PluginData, ReviewLog } from './types';
 import { isRecord, toStringArray, cyrb53hex, getDocsWritten, getErrorMessage, isLikelyCorsOrNetworkErrorMessage, buildAuthenticatedUrl } from './constants';
@@ -615,7 +615,7 @@ export class DataManager {
             [Rating.Hard]: formatInterval(schedulingCards[Rating.Hard].card.scheduled_days),
             [Rating.Good]: formatInterval(schedulingCards[Rating.Good].card.scheduled_days),
             [Rating.Easy]: formatInterval(schedulingCards[Rating.Easy].card.scheduled_days),
-        } as Record<number, string>;
+        };
     }
 
     getStats() {
@@ -717,15 +717,10 @@ export class DataManager {
                     bucket.predictedSum += 1;
                 }
 
-                const repeatCard = state || {
-                    due: new Date(review.timestamp), stability: 0, difficulty: 0,
-                    elapsed_days: 0, scheduled_days: 0, reps: 0, lapses: 0,
-                    state: State.New,
-                };
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
-                const schedulingCards: any = this.fsrs.repeat(repeatCard, new Date(review.timestamp));
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment
-                state = schedulingCards[String(review.rating)].card;
+                const repeatCard: FSRSCard = state ?? createEmptyCard(new Date(review.timestamp));
+                const schedulingCards = this.fsrs.repeat(repeatCard, new Date(review.timestamp));
+                const rating = review.rating as Exclude<Rating, Rating.Manual>;
+                state = schedulingCards[rating].card;
 
                 const actualR = review.rating >= Rating.Good ? 1 : 0;
                 bucket.actualSum += actualR;

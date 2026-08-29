@@ -86,7 +86,7 @@ export class OptimizerModal extends Modal {
 
         const { request_retention, maximum_interval } = this.plugin.settings.fsrsParams;
 
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => window.setTimeout(resolve, 50));
 
         try {
             const onProgress = (r: OptimizerResult) => {

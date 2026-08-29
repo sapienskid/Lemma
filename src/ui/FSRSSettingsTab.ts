@@ -17,8 +17,8 @@ export class FSRSSettingsTab extends PluginSettingTab {
         const { containerEl } = this;
         containerEl.empty();
 
-        const tabNav = containerEl.createEl('div', { cls: 'lemma-tab-nav' });
-        const tabContent = containerEl.createEl('div', { cls: 'lemma-tab-content' });
+        const tabNav = containerEl.createDiv({ cls: 'lemma-tab-nav' });
+        const tabContent = containerEl.createDiv({ cls: 'lemma-tab-content' });
 
         const tabs = [
             { id: 'general', label: 'General' },
@@ -163,9 +163,9 @@ export class FSRSSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('CouchDB server URL')
-            .setDesc('Your CouchDB server URL (e.g., https://your-server.com:5984/lemma)')
+            .setDesc('Your CouchDB server URL (for example, https://example.com:5984/db)')
             .addText(text => text
-                .setPlaceholder('https://your-server.com:5984/lemma')
+                .setPlaceholder('Enter server URL (for example, https://example.com:5984/db)')
                 .setValue(this.plugin.settings.syncUrl)
                 .onChange(async (value) => {
                     this.plugin.settings.syncUrl = value.trim();
@@ -366,8 +366,8 @@ export class FSRSSettingsTab extends PluginSettingTab {
             if (Array.isArray(items[0])) {
                 const grid = section.createDiv({ cls: 'lemma-ref-grid' });
                 for (const [key, desc] of items as string[][]) {
-                    grid.createEl('span', { cls: 'lemma-ref-key', text: key });
-                    grid.createEl('span', { text: desc });
+                    grid.createSpan({ cls: 'lemma-ref-key', text: key });
+                    grid.createSpan({ text: desc });
                 }
             } else {
                 const ul = section.createEl('ul');
