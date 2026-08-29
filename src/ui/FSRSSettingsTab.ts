@@ -286,13 +286,13 @@ export class FSRSSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('FSRS weights')
-            .setDesc('Comma-separated FSRS weights (17 values).')
+            .setDesc('Comma-separated FSRS weights (19 values).')
             .addTextArea((text) => {
                 text.setValue(this.plugin.settings.fsrsParams.w.join(', '))
                     .onChange(async (value) => {
                         try {
                             const weights = value.split(',').map((entry) => parseFloat(entry.trim()));
-                            if (weights.length === 17 && weights.every((weight) => !isNaN(weight))) {
+                            if ((weights.length === 19 || weights.length === 17) && weights.every((weight) => !isNaN(weight))) {
                                 this.plugin.settings.fsrsParams.w = weights;
                                 await this.plugin.saveSettings();
                                 this.plugin.dataManager.updateFsrsParameters(this.plugin.settings.fsrsParams);

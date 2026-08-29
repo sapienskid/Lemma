@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-08-29
+
+### Added
+- **Contributing Guide:** Added comprehensive [`CONTRIBUTING.md`](file:///run/media/sapiens/Development/Lemma/CONTRIBUTING.md) for open-source community guidelines.
+- **Note Review Preview:** Added live Markdown rendering in [`ReviewNoteModal`](file:///run/media/sapiens/Development/Lemma/src/ui/ReviewNoteModal.ts) so notes tagged with `#review` display full formatted note content during review.
+- **Enhanced Type-In Answers:** Type-in cards now display detailed feedback and reveal full rating controls (Again, Hard, Good, Easy) for complete review agency.
+
+### Fixed
+- **FSRS Weight Validation:** Updated [`FSRSSettingsTab`](file:///run/media/sapiens/Development/Lemma/src/ui/FSRSSettingsTab.ts) to support the full 19-weight FSRS 4.5/5.0 parameter array, ensuring seamless integration with the built-in weight optimizer.
+- **Mobile Swipe Handling:** Refined gesture detection in [`ReviewModal`](file:///run/media/sapiens/Development/Lemma/src/ui/ReviewModal.ts) to prevent conflict between vertical card scrolling and rating swipes.
+- **Community Scorecard Compliance:** Updated [`manifest.json`](file:///run/media/sapiens/Development/Lemma/manifest.json) description to strictly adhere to Obsidian community guidelines (omitting restricted terms and ensuring punctuation compliance).
+- **Clean Documentation:** Removed all emoji glyphs across all documentation and guides for clean, professional presentation.
+
 ## [1.0.1] - 2026-07-05
 
 ### Fixed

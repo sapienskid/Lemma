@@ -1,4 +1,4 @@
-import { App, Modal, ButtonComponent, Notice, Component, setIcon } from 'obsidian';
+import { App, Modal, ButtonComponent, Notice, Component, setIcon, MarkdownRenderer, TFile } from 'obsidian';
 import { Rating } from 'ts-fsrs';
 import type { NoteReviewData } from '../data/types';
 
@@ -45,10 +45,11 @@ export class ReviewNoteModal extends Modal {
         noteContainer.createDiv({ cls: 'fsrs-note-review-content fsrs-note-preview' });
 
         new ButtonComponent(container)
-            .setButtonText('Open note to review')
+            .setButtonText('Open note in editor')
             .setCta()
             .onClick(() => {
-                void this.app.workspace.openLinkText(noteData.filePath, noteData.filePath);
+                const current = this.getCurrentNote();
+                void this.app.workspace.openLinkText(current.filePath, current.filePath);
             });
 
         const ratingSection = container.createDiv({ cls: 'fsrs-review-controls fsrs-note-rating-section' });
@@ -79,6 +80,17 @@ export class ReviewNoteModal extends Modal {
         const titleEl = this.contentEl.querySelector('.fsrs-note-review-title');
         if (titleEl) {
             titleEl.textContent = noteData.filePath.split('/').pop() || 'untitled';
+        }
+
+        const previewEl = this.contentEl.querySelector('.fsrs-note-preview');
+        if (previewEl instanceof HTMLElement) {
+            previewEl.empty();
+            const file = this.app.vault.getAbstractFileByPath(noteData.filePath);
+            if (file instanceof TFile) {
+                const content = await this.app.vault.read(file);
+                const cleanContent = content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+                await MarkdownRenderer.render(this.app, cleanContent, previewEl, noteData.filePath, this.renderComponent);
+            }
         }
     }
 

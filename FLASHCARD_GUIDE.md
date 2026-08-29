@@ -175,12 +175,12 @@ The quadratic formula is ==c1::x = (-b ± √(b² - 4ac)) / 2a==. ^my-math-card
 Block IDs (`^unique-id`) ensure your cards maintain their review history even when you edit them.
 
 **Without Block ID:**
-- Card ID is generated from file path + front content hash
-- Editing the front resets your progress 😢
+- Card ID is generated from file path and front content hash
+- Editing the front resets your review history
 
 **With Block ID:**
-- Card ID is based on the block ID
-- Edit freely without losing progress 😊
+- Card ID is based on the persistent block ID
+- Edit freely without losing review history
 
 ### Generating Block IDs
 
@@ -276,11 +276,11 @@ See also: [[Geometry Basics]]
 ### Cloze Tips
 
 ```markdown
-❌ Avoid: The ==c1::quick brown fox jumps over the lazy dog==.
-✅ Better: The ==c1::quick brown fox== jumps over the lazy dog.
+Avoid: The ==c1::quick brown fox jumps over the lazy dog==.
+Better: The ==c1::quick brown fox== jumps over the lazy dog.
 
-❌ Avoid: ==c1::Paris== is the capital of ==c2::France== and has ==c3::2.1 million== people.
-✅ Better: Split into focused clozes or separate cards
+Avoid: ==c1::Paris== is the capital of ==c2::France== and has ==c3::2.1 million== people.
+Better: Split into focused clozes or separate cards
 ```
 
 ### Organization
@@ -386,4 +386,4 @@ FSRS stands for ==c1::Free Spaced Repetition Scheduler==. ^sr-002
 
 ---
 
-Happy studying! 📚✨
+Happy studying!

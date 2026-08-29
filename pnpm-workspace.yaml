@@ -1,1 +1,6 @@
-onlyBuiltDependencies: esbuild
+overrides:
+  uuid: ^11.1.1
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild

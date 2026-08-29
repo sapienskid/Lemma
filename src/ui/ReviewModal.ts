@@ -122,6 +122,13 @@ export class ReviewModal extends Modal {
         this.typeinFeedback = this.typeinContainer.createDiv({ cls: 'fsrs-typein-feedback' });
         this.typeinFeedback.hide();
 
+        this.typeinInput.addEventListener('keydown', (e: KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.typeinCheckBtn.buttonEl.click();
+            }
+        });
+
         this.typeinCheckBtn = new ButtonComponent(this.typeinContainer)
             .setButtonText('Check')
             .setCta()
@@ -143,19 +150,18 @@ export class ReviewModal extends Modal {
 
                 if (exactMatch) {
                     this.typeinFeedback.createEl('span', { text: 'Correct', cls: 'fsrs-typein-correct' });
-                    this.typeinFeedback.createEl('p', { text: `Answer: ${correct}`, cls: 'fsrs-typein-answer' });
-                    this.handleRating(Rating.Good);
                 } else if (keywordMatch) {
                     this.typeinFeedback.createEl('span', { text: 'Close match', cls: 'fsrs-typein-partial' });
-                    this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
-                    this.controlsContainer.show();
-                    this.showAnswerButton.buttonEl.hide();
                 } else {
                     this.typeinFeedback.createEl('span', { text: 'Not correct', cls: 'fsrs-typein-wrong' });
-                    this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
-                    this.controlsContainer.show();
-                    this.showAnswerButton.buttonEl.hide();
                 }
+                this.typeinFeedback.createEl('p', { text: `Correct answer: ${correct}`, cls: 'fsrs-typein-answer' });
+
+                this.createControlButtons();
+                this.state = 'answer';
+                this.controlsContainer.show();
+                this.showAnswerButton.buttonEl.hide();
+                this.answerContainer.show();
             });
         this.typeinCheckBtn.buttonEl.addClass('fsrs-typein-check-btn');
 
@@ -167,10 +173,10 @@ export class ReviewModal extends Modal {
         addHandler(this.cardContainer, 'pointermove', (e: Event) => this.onGestureMove(e as PointerEvent));
         addHandler(this.cardContainer, 'pointerup', (e: Event) => this.onGestureEnd(e as PointerEvent));
         addHandler(this.cardContainer, 'pointerleave', (e: Event) => this.onGestureEnd(e as PointerEvent));
-        this.cardContainer.addClass('fsrs-no-touch-action');
     }
 
     private onGestureStart(e: PointerEvent) {
+        if (this.state !== 'answer') return;
         this.isGesturing = true;
         this.gestureStartX = e.clientX;
         this.gestureStartY = e.clientY;
@@ -179,14 +185,14 @@ export class ReviewModal extends Modal {
     }
 
     private onGestureMove(e: PointerEvent) {
-        if (!this.isGesturing) return;
+        if (!this.isGesturing || this.state !== 'answer') return;
         this.gestureCurrentX = e.clientX;
         this.gestureCurrentY = e.clientY;
 
         const dx = this.gestureCurrentX - this.gestureStartX;
         const dy = this.gestureCurrentY - this.gestureStartY;
 
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
             this.cardContainer.setCssProps({
                 '--fsrs-swipe-dx': `${dx * 0.4}px`,
                 '--fsrs-swipe-dy': `${dy * 0.2}px`,
@@ -229,7 +235,7 @@ export class ReviewModal extends Modal {
     private getSwipeDirection(dx: number, dy: number): SwipeDirection {
         if (Math.abs(dx) < SWIPE_THRESHOLD && Math.abs(dy) < SWIPE_THRESHOLD) return null;
 
-        if (Math.abs(dx) > Math.abs(dy)) {
+        if (Math.abs(dx) >= Math.abs(dy)) {
             return dx < 0 ? 'left' : 'right';
         } else {
             return dy < 0 ? 'up' : 'down';

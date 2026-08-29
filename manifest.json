@@ -1,9 +1,9 @@
 {
   "id": "lemma-flashcards",
   "name": "Lemma",
-  "version": "1.0.1",
-  "minAppVersion": "0.15.0",
-  "description": "Stop switching between Obsidian and Anki. Lemma turns any tagged note into a flashcard deck — write cards in plain Markdown using basic Q&A or cloze syntax, and FSRS 4.5 handles when to review them. Full Markdown rendering (LaTeX, images, callouts), dashboard with due counts, custom study sessions, 30-day statistics, native mobile support, and optional CouchDB sync. Your notes. Your data. Your memory.",
+  "version": "1.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Create and review flashcards directly in notes using the FSRS spaced repetition algorithm. Supports cloze deletions, custom study sessions, learning analytics, and CouchDB sync.",
   "author": "Sapienskid",
   "authorUrl": "https://github.com/sapienskid",
   "fundingUrl": "https://github.com/sapienskid/Lemma",
