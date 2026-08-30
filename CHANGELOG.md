@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-08-30
+
+### Added
+- **Declarative Settings Search:** Implemented `getSettingDefinitions()` on [`FSRSSettingsTab`](file:///run/media/sapiens/Development/Lemma/src/ui/FSRSSettingsTab.ts) to support Obsidian 1.13+ settings search and satisfy community review standards.
+
 ## [1.1.1] - 2026-08-29
 
 ### Added
